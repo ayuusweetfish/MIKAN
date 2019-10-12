@@ -51,16 +51,16 @@ void kernel_main()
     murmur(5);
 
     DSB();
-    UsbInitialise();
+    csudUsbInitialise();
     DMB();
 
     uint32_t last_count = 0;
     while (1) {
         DSB();
-        UsbCheckForChange();
+        csudUsbCheckForChange();
         uint32_t interval = 1000000;
-        if (KeyboardCount() != 0) {
-            uint32_t count = KeyboardGetKeyDownCount(KeyboardGetAddress(0));
+        if (csudKeyboardCount() != 0) {
+            uint32_t count = csudKeyboardGetKeyDownCount(csudKeyboardGetAddress(0));
             murmur(count < last_count ? 2 : (count == last_count ? 3 : 4));
             last_count = count;
             interval = 400000;
