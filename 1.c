@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include "usbd/usbd.h"
+#include "device/hid/keyboard.h"
 
 #define GPIO_BASE   0x20200000
 
@@ -17,25 +19,58 @@
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 
-void wait()
+void wait(uint32_t ticks)
 {
     DSB();
     uint32_t val = *SYSTMR_CLO;
-    *SYSTMR_C0 = val + 1000000;
+    *SYSTMR_C0 = val + ticks;
     while ((*SYSTMR_CS) & 1) { *SYSTMR_CS = 1; DMB(); DSB(); }
     while (((*SYSTMR_CS) & 1) == 0) { }
     while ((*SYSTMR_CS) & 1) { *SYSTMR_CS = 1; DMB(); DSB(); }
     DMB();
 }
 
+void murmur(uint32_t num)
+{
+    DSB();
+    for (uint32_t i = 0; i < num; i++) {
+        *GPCLR1 = (1 << 15);
+        wait(200000);
+        *GPSET1 = (1 << 15);
+        wait(200000);
+    }
+    DMB();
+}
+
 void kernel_main()
 {
+    DSB();
     *GPFSEL4 |= (1 << 21);
+    DMB();
 
+    murmur(5);
+
+    DSB();
+    UsbInitialise();
+    DMB();
+
+    uint32_t last_count = 0;
     while (1) {
+        DSB();
+        UsbCheckForChange();
+        uint32_t interval = 1000000;
+        if (KeyboardCount() != 0) {
+            uint32_t count = KeyboardGetKeyDownCount(KeyboardGetAddress(0));
+            murmur(count < last_count ? 2 : (count == last_count ? 3 : 4));
+            last_count = count;
+            interval = 400000;
+        }
+        DMB();
+        DSB();
         *GPCLR1 = (1 << 15);
-        wait();
+        wait(interval);
         *GPSET1 = (1 << 15);
-        wait();
+        wait(interval);
+        DMB();
     }
 }
