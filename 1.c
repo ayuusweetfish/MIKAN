@@ -82,21 +82,40 @@ void kernel_main()
     }
 
     // Set up framebuffer
-    struct fb f __attribute__((aligned(16))) = { 0 };
+    volatile struct fb f __attribute__((aligned(16))) = { 0 };
     f.pwidth = 128;
     f.pheight = 128;
     f.vwidth = 128;
     f.vheight = 128;
     f.bpp = 24;
-    send_mail(((uint32_t)&f) >> 4, MAIL0_CH_FB);
+    send_mail(((uint32_t)&f + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
 
-    uint8_t *buf = (uint8_t *)(f.buf << 4);
+    uint8_t *buf = (uint8_t *)(f.buf);
     for (uint32_t y = 0; y < 128; y++)
     for (uint32_t x = 0; x < 128; x++) {
-        buf[y * f.pitch + x * 3 + 0] = (((x + y) & 1) ? 255 : 0);
-        buf[y * f.pitch + x * 3 + 1] = 192;
-        buf[y * f.pitch + x * 3 + 2] = 108;
+        buf[y * f.pitch + x * 3 + 2] = ((((x + y) & 1) ? 255 : 0) * (256 - x - y)) >> 8;
+        buf[y * f.pitch + x * 3 + 1] = (192 * (256 - x - y)) >> 8;
+        buf[y * f.pitch + x * 3 + 0] = (108 * (256 - x - y)) >> 8;
+    }
+
+    wait(5000000);
+
+    const uint8_t stripes[8][3] = {
+        {255, 0, 0},
+        {0, 255, 0},
+        {0, 0, 255},
+        {255, 255, 0},
+        {255, 0, 255},
+        {0, 255, 255},
+        {128, 128, 128},
+        {255, 255, 255}
+    };
+    for (uint32_t y = 0; y < 128; y++)
+    for (uint32_t x = 0; x < 128; x++) {
+        buf[y * f.pitch + x * 3 + 2] = ((uint16_t)stripes[y >> 4][0] * (128 - x)) >> 7;
+        buf[y * f.pitch + x * 3 + 1] = ((uint16_t)stripes[y >> 4][1] * (128 - x)) >> 7;
+        buf[y * f.pitch + x * 3 + 0] = ((uint16_t)stripes[y >> 4][2] * (128 - x)) >> 7;
     }
 
     while (1) {
