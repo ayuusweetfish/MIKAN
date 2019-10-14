@@ -73,6 +73,14 @@ void wait(uint32_t ticks)
     DMB();
 }
 
+uint32_t get_time()
+{
+    DSB();
+    uint32_t val = *SYSTMR_CLO;
+    DMB();
+    return val;
+}
+
 void murmur(uint32_t num)
 {
     DSB();
@@ -98,18 +106,20 @@ void kernel_main()
     DMB();
 
     // Set up framebuffer
-    volatile struct fb f __attribute__((aligned(16))) = { 0 };
-    f.pwidth = 512;
-    f.pheight = 512;
-    f.vwidth = 512;
-    f.vheight = 512;
-    f.bpp = 24;
-    send_mail(((uint32_t)&f + 0x40000000) >> 4, MAIL0_CH_FB);
+    volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
+    f_volatile.pwidth = 512;
+    f_volatile.pheight = 512;
+    f_volatile.vwidth = 512;
+    f_volatile.vheight = 512;
+    f_volatile.bpp = 24;
+    send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
 
+    struct fb f = f_volatile;
+
     uint8_t *buf = (uint8_t *)(f.buf);
-    for (uint32_t y = 0; y < 512; y++)
-    for (uint32_t x = 0; x < 512; x++) {
+    for (uint32_t y = 0; y < f.vheight; y++)
+    for (uint32_t x = 0; x < f.vwidth; x++) {
         buf[y * f.pitch + x * 3 + 2] =
         buf[y * f.pitch + x * 3 + 1] =
         buf[y * f.pitch + x * 3 + 0] = 255;
@@ -121,10 +131,29 @@ void kernel_main()
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     DSB();
 
-    while (1) {
+    while (0) {
         print_putchar('\r');
         DMB();
         csudUsbCheckForChange();
         DSB();
+    }
+
+    uint32_t r = 255, g = 255, b = 255;
+    uint32_t seed = 4481192 + 415092;
+    uint32_t frm = 0, t0 = get_time(), t;
+    while (1) {
+        for (uint32_t y = f.vheight - 1; y != UINT32_MAX; y--)
+        for (uint32_t x = 0; x < f.vwidth; x++) {
+            buf[y * f.pitch + x * 3 + 2] = r;
+            buf[y * f.pitch + x * 3 + 1] = g;
+            buf[y * f.pitch + x * 3 + 0] = b;
+        }
+        seed = ((seed * 1103515245) + 12345) & 0x7fffffff;
+        r = (r == 255 ? r - 1 : (r == 144 ? r + 1 : r + ((seed >> 0) & 2) - 1));
+        g = (g == 255 ? g - 1 : (g == 144 ? g + 1 : g + ((seed >> 1) & 2) - 1));
+        b = (b == 255 ? b - 1 : (b == 144 ? b + 1 : b + ((seed >> 2) & 2) - 1));
+        t = get_time() - t0;
+        frm++;
+        printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
     }
 }
