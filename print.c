@@ -24,7 +24,10 @@ void print_putchar(char ch)
 {
     if (ch == '\n') {
         x = 0;
-        y += CHAR_H;
+        if ((y += CHAR_H) > h - CHAR_H) y = 0;
+        return;
+    } else if (ch == '\r') {
+        x = 0;
         return;
     }
 
@@ -40,9 +43,9 @@ void print_putchar(char ch)
             tex_data[(ty + dy) * TEX_W + (tx + dx)] * 255;
     }
 
-    if ((x += CHAR_W) >= w) {
-        x -= w;
-        if ((y += CHAR_H) >= h) y -= h;
+    if ((x += CHAR_W) > w - CHAR_W) {
+        x = 0;
+        if ((y += CHAR_H) > h - CHAR_H) y = 0;
     }
 }
 

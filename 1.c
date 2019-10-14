@@ -115,8 +115,24 @@ void kernel_main()
         buf[y * f.pitch + x * 3 + 0] = 192;
     }
 
+    DMB();
     print_init(buf, f.vwidth, f.vheight, f.pitch);
-    print("Hello world!\nHello MIKAN!");
+    print("Hello world!\nHello MIKAN!\n");
+    print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
+    DSB();
 
-    while (1) { }
+    while (1) {
+        print_putchar('\r');
+        DMB();
+        csudUsbCheckForChange();
+        if (csudKeyboardCount() > 0) {
+            csudKeyboardPoll(csudKeyboardGetAddress(0));
+            DSB();
+            DMB();
+            printf("Key count: %d", csudKeyboardGetKeyDownCount(csudKeyboardGetAddress(0)));
+        } else {
+            print("No keyboard");
+        }
+        DSB();
+    }
 }
