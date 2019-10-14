@@ -60,6 +60,9 @@ void kernel_main()
         csudUsbCheckForChange();
         uint32_t interval = 1000000;
         if (csudKeyboardCount() != 0) {
+            uint32_t a = -csudKeyboardPoll(csudKeyboardGetAddress(0));
+            murmur(a + 1);
+            wait(1000000);
             uint32_t count = csudKeyboardGetKeyDownCount(csudKeyboardGetAddress(0));
             murmur(count < last_count ? 2 : (count == last_count ? 3 : 4));
             last_count = count;
