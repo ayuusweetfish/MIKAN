@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include "usbd/usbd.h"
+#include "device/hid/keyboard.h"
 
 #define GPIO_BASE   0x20200000
 
@@ -70,16 +72,29 @@ void wait(uint32_t ticks)
     DMB();
 }
 
+void murmur(uint32_t num)
+{
+    DSB();
+    for (uint32_t i = 0; i < num; i++) {
+        *GPCLR1 = (1 << 15);
+        wait(200000);
+        *GPSET1 = (1 << 15);
+        wait(200000);
+    }
+    DMB();
+}
+
 void kernel_main()
 {
+    DSB();
     *GPFSEL4 |= (1 << 21);
+    DMB();
 
-    for (int i = 0; i < 3; i++) {
-        *GPCLR1 = (1 << 15);
-        wait(500000);
-        *GPSET1 = (1 << 15);
-        wait(500000);
-    }
+    murmur(5);
+
+    DSB();
+    csudUsbInitialise();
+    DMB();
 
     // Set up framebuffer
     volatile struct fb f __attribute__((aligned(16))) = { 0 };
