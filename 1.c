@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "print.h"
 #include "usbd/usbd.h"
 #include "device/hid/keyboard.h"
 
@@ -109,34 +110,13 @@ void kernel_main()
     uint8_t *buf = (uint8_t *)(f.buf);
     for (uint32_t y = 0; y < 128; y++)
     for (uint32_t x = 0; x < 128; x++) {
-        buf[y * f.pitch + x * 3 + 2] = ((((x + y) & 1) ? 255 : 0) * (256 - x - y)) >> 8;
-        buf[y * f.pitch + x * 3 + 1] = (192 * (256 - x - y)) >> 8;
-        buf[y * f.pitch + x * 3 + 0] = (108 * (256 - x - y)) >> 8;
+        buf[y * f.pitch + x * 3 + 2] = 255;
+        buf[y * f.pitch + x * 3 + 1] = 216;
+        buf[y * f.pitch + x * 3 + 0] = 192;
     }
 
-    wait(5000000);
+    print_init(buf, f.vwidth, f.vheight, f.pitch);
+    print("Hello world!\nHello MIKAN!");
 
-    const uint8_t stripes[8][3] = {
-        {255, 0, 0},
-        {0, 255, 0},
-        {0, 0, 255},
-        {255, 255, 0},
-        {255, 0, 255},
-        {0, 255, 255},
-        {128, 128, 128},
-        {255, 255, 255}
-    };
-    for (uint32_t y = 0; y < 128; y++)
-    for (uint32_t x = 0; x < 128; x++) {
-        buf[y * f.pitch + x * 3 + 2] = ((uint16_t)stripes[y >> 4][0] * (128 - x)) >> 7;
-        buf[y * f.pitch + x * 3 + 1] = ((uint16_t)stripes[y >> 4][1] * (128 - x)) >> 7;
-        buf[y * f.pitch + x * 3 + 0] = ((uint16_t)stripes[y >> 4][2] * (128 - x)) >> 7;
-    }
-
-    while (1) {
-        *GPCLR1 = (1 << 15);
-        wait(200000);
-        *GPSET1 = (1 << 15);
-        wait(200000);
-    }
+    while (1) { }
 }
