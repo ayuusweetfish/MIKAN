@@ -99,20 +99,20 @@ void kernel_main()
 
     // Set up framebuffer
     volatile struct fb f __attribute__((aligned(16))) = { 0 };
-    f.pwidth = 128;
-    f.pheight = 128;
-    f.vwidth = 128;
-    f.vheight = 128;
+    f.pwidth = 512;
+    f.pheight = 512;
+    f.vwidth = 512;
+    f.vheight = 512;
     f.bpp = 24;
     send_mail(((uint32_t)&f + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
 
     uint8_t *buf = (uint8_t *)(f.buf);
-    for (uint32_t y = 0; y < 128; y++)
-    for (uint32_t x = 0; x < 128; x++) {
-        buf[y * f.pitch + x * 3 + 2] = 255;
-        buf[y * f.pitch + x * 3 + 1] = 216;
-        buf[y * f.pitch + x * 3 + 0] = 192;
+    for (uint32_t y = 0; y < 512; y++)
+    for (uint32_t x = 0; x < 512; x++) {
+        buf[y * f.pitch + x * 3 + 2] =
+        buf[y * f.pitch + x * 3 + 1] =
+        buf[y * f.pitch + x * 3 + 0] = 255;
     }
 
     DMB();
@@ -125,14 +125,6 @@ void kernel_main()
         print_putchar('\r');
         DMB();
         csudUsbCheckForChange();
-        if (csudKeyboardCount() > 0) {
-            csudKeyboardPoll(csudKeyboardGetAddress(0));
-            DSB();
-            DMB();
-            printf("Key count: %d", csudKeyboardGetKeyDownCount(csudKeyboardGetAddress(0)));
-        } else {
-            print("No keyboard");
-        }
         DSB();
     }
 }
