@@ -17,6 +17,8 @@
 #define SYSTMR_CLO  (volatile uint32_t *)(SYSTMR_BASE + 0x04)
 #define SYSTMR_C0   (volatile uint32_t *)(SYSTMR_BASE + 0x0c)
 #define SYSTMR_C1   (volatile uint32_t *)(SYSTMR_BASE + 0x10)
+#define SYSTMR_C2   (volatile uint32_t *)(SYSTMR_BASE + 0x14)
+#define SYSTMR_C3   (volatile uint32_t *)(SYSTMR_BASE + 0x18)
 
 #define MAIL0_BASE  0x2000b880
 
@@ -36,6 +38,7 @@
 
 #define INT_BASE    0x2000b000
 #define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
+#define INT_IRQPEND1    (volatile uint32_t *)(INT_BASE + 0x204)
 #define INT_IRQENAB1    (volatile uint32_t *)(INT_BASE + 0x210)
 #define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
 
@@ -81,6 +84,7 @@ struct fb {
     uint32_t size;
 };
 
+struct fb f;
 static uint8_t gbuf[128 * 128 * 8];
 
 void wait(uint32_t ticks)
@@ -161,15 +165,55 @@ void set_virtual_offs(uint32_t x, uint32_t y)
     recv_mail(MAIL0_CH_PROP);
 }
 
+static volatile bool new_frame = false;
+
 void __attribute__((interrupt("IRQ"))) _int_irq()
 {
     DMB(); DSB();
-    static bool on = false;
-    *((on = !on) ? GPCLR1 : GPSET1) = (1 << 15);
+    *SYSTMR_CS = 8;
+    uint32_t t = *SYSTMR_CLO;
+    t = t - t % 16666 + 16666;
+    *SYSTMR_C3 = t;
     DMB(); DSB();
-    *SYSTMR_CS = 1;
-    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
-    DMB(); DSB();
+    new_frame = true;
+}
+
+void draw()
+{
+    static uint32_t r = 255, g = 255, b = 255;
+    static uint32_t seed = 4481192 + 415092;
+    static uint32_t frm = 0, t0 = UINT32_MAX, t;
+    if (t0 == UINT32_MAX) t0 = get_time();
+
+    for (uint32_t y = 0; y < f.pheight; y++)
+    for (uint32_t x = 0; x < f.pwidth; x++) {
+        gbuf[y * f.pitch + x * 3 + 2] =
+        gbuf[y * f.pitch + x * 3 + 1] =
+        gbuf[y * f.pitch + x * 3 + 0] = 0;
+    }
+    for (uint32_t y = 0; y < f.pheight; y++)
+    for (uint32_t x = 0; x < f.pwidth; x++) {
+        gbuf[y * f.pitch + x * 3 + 2] = r;
+        gbuf[y * f.pitch + x * 3 + 1] = (x == (frm << 1) % f.pwidth ? 0 : g);
+        gbuf[y * f.pitch + x * 3 + 0] = b;
+    }
+    seed = ((seed * 1103515245) + 12345) & 0x7fffffff;
+    r = (r == 255 ? r - 1 : (r == 144 ? r + 1 : r + ((seed >> 0) & 2) - 1));
+    g = (g == 255 ? g - 1 : (g == 144 ? g + 1 : g + ((seed >> 1) & 2) - 1));
+    b = (b == 255 ? b - 1 : (b == 144 ? b + 1 : b + ((seed >> 2) & 2) - 1));
+    t = get_time() - t0;
+    frm++;
+    print_setbuf(gbuf);
+    print_putchar('\r');
+    print_putchar('0' + frm / 10000 % 10);
+    print_putchar('0' + frm / 1000 % 10);
+    print_putchar('0' + frm / 100 % 10);
+    print_putchar('0' + frm / 10 % 10);
+    print_putchar('0' + frm % 10);
+    print_putchar(' ');
+    print_putchar('0' + frm * 1000000 / t / 100);
+    print_putchar('0' + frm * 1000000 / t / 10 % 10);
+    print_putchar('0' + frm * 1000000 / t % 10);
 }
 
 void kernel_main()
@@ -181,11 +225,7 @@ void kernel_main()
     // Enable interrupts from the system timer
     // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
     DSB();
-    *SYSTMR_CS = 1;
-    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
-    DMB();
-    DSB();
-    *INT_IRQENAB1 = 1;
+    *INT_IRQENAB1 = 8;
     DMB();
 
     _enable_int();
@@ -200,7 +240,7 @@ void kernel_main()
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
 
-    struct fb f = f_volatile;
+    f = f_volatile;
 
     uint8_t *buf = (uint8_t *)(f.buf);
     for (uint32_t y = 0; y < f.vheight; y++)
@@ -211,7 +251,7 @@ void kernel_main()
     }
 
     DMB();
-    print_init(buf, f.vwidth, f.vheight, f.pitch);
+    print_init(gbuf, f.vwidth, f.vheight, f.pitch);
     print("Hello world!\nHello MIKAN!\n");
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     DSB();
@@ -219,42 +259,26 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
-    uint32_t r = 255, g = 255, b = 255;
-    uint32_t seed = 4481192 + 415092;
-    uint32_t frm = 0, t0 = get_time(), t;
+    // Start system timer
+    DSB();
+    *SYSTMR_CS = 8;
+    *SYSTMR_C3 = *SYSTMR_CLO + 16666;
+    DMB();
+
     uint8_t buffer_id = 0;
+    uint32_t last_time = get_time();
     while (1) {
-        for (uint32_t y = 0; y < f.pheight; y++)
-        for (uint32_t x = 0; x < f.pwidth; x++) {
-            gbuf[y * f.pitch + x * 3 + 2] =
-            gbuf[y * f.pitch + x * 3 + 1] =
-            gbuf[y * f.pitch + x * 3 + 0] = 0;
-        }
-        for (uint32_t y = 0; y < f.pheight; y++)
-        for (uint32_t x = 0; x < f.pwidth; x++) {
-            gbuf[y * f.pitch + x * 3 + 2] = r;
-            gbuf[y * f.pitch + x * 3 + 1] = (x == (frm << 1) % f.pwidth ? 0 : g);
-            gbuf[y * f.pitch + x * 3 + 0] = b;
-        }
+        if (!new_frame) continue;
+        new_frame = false;
+        uint32_t t = get_time();
+        draw();
         uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
         uint8_t *scr = buf + virt_y * f.pitch;
-        DSB();
         memcpy(scr, gbuf, f.pitch * f.pheight);
-        seed = ((seed * 1103515245) + 12345) & 0x7fffffff;
-        r = (r == 255 ? r - 1 : (r == 144 ? r + 1 : r + ((seed >> 0) & 2) - 1));
-        g = (g == 255 ? g - 1 : (g == 144 ? g + 1 : g + ((seed >> 1) & 2) - 1));
-        b = (b == 255 ? b - 1 : (b == 144 ? b + 1 : b + ((seed >> 2) & 2) - 1));
-        t = get_time() - t0;
-        frm++;
-        print_setbuf(scr);
-        printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
-        DMB();
         set_virtual_offs(0, virt_y);
         buffer_id ^= 1;
+        print_setbuf(scr);
+        printf("|%d", t - last_time);
+        last_time = t;
     }
-
-    while (1) _standby();
-    // Ensure we don't reach here!
-    // If the ACT LED stays on then something went wrong
-    while (1) *GPCLR1 = (1 << 15);
 }
