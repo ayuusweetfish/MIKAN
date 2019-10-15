@@ -23,7 +23,8 @@
 #define MAIL0_STATUS    (volatile uint32_t *)(MAIL0_BASE + 0x18)
 #define MAIL0_WRITE     (volatile uint32_t *)(MAIL0_BASE + 0x20)
 
-#define MAIL0_CH_FB 1
+#define MAIL0_CH_FB     1
+#define MAIL0_CH_PROP   8
 
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
@@ -93,6 +94,36 @@ void murmur(uint32_t num)
     DMB();
 }
 
+#define mbox_buf(__sz) \
+    struct buf_t {              \
+        uint32_t size;          \
+        uint32_t code;          \
+        struct tag_t {          \
+            uint32_t id;        \
+            uint32_t size;      \
+            uint32_t code;      \
+            uint32_t val[__sz]; \
+        } tag;                  \
+        uint32_t end_tag;       \
+    } __attribute__((aligned(16)))
+
+uint32_t get_pixel_order()
+{
+    mbox_buf(1) buf;
+
+    buf.size = sizeof buf;
+    buf.code = 0;           // Request
+    buf.tag.id = 0x40006;   // Get pixel order
+    buf.tag.size = 4;       // Request length
+    buf.tag.code = 0;       // Request
+    buf.tag.val[0] = 123;   // Don't care
+    buf.end_tag = 0;
+
+    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
+    recv_mail(MAIL0_CH_PROP);
+    return buf.tag.val[0];
+}
+
 void kernel_main()
 {
     DSB();
@@ -101,9 +132,11 @@ void kernel_main()
 
     murmur(5);
 
+/*
     DSB();
     csudUsbInitialise();
     DMB();
+*/
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
@@ -131,6 +164,12 @@ void kernel_main()
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     DSB();
 
+    uint32_t pix_ord = get_pixel_order();
+    printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
+
+    while (1) { }
+
+/*
     while (0) {
         print_putchar('\r');
         DMB();
@@ -156,4 +195,5 @@ void kernel_main()
         frm++;
         printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
     }
+*/
 }
