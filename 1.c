@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include "print.h"
 #include "usbd/usbd.h"
 #include "device/hid/keyboard.h"
@@ -62,6 +63,8 @@ struct fb {
     uint32_t buf;
     uint32_t size;
 };
+
+static uint8_t gbuf[128 * 128 * 8];
 
 void wait(uint32_t ticks)
 {
@@ -147,8 +150,6 @@ void kernel_main()
     *GPFSEL4 |= (1 << 21);
     DMB();
 
-    murmur(5);
-
 /*
     DSB();
     csudUsbInitialise();
@@ -157,10 +158,10 @@ void kernel_main()
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
-    f_volatile.pwidth = 512;
-    f_volatile.pheight = 512;
-    f_volatile.vwidth = 512;
-    f_volatile.vheight = 512 * 2;
+    f_volatile.pwidth = 128;
+    f_volatile.pheight = 128;
+    f_volatile.vwidth = 128;
+    f_volatile.vheight = 128 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -198,14 +199,22 @@ void kernel_main()
     uint32_t frm = 0, t0 = get_time(), t;
     uint8_t buffer_id = 0;
     while (1) {
-        uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
-        uint8_t *scr = buf + virt_y * f.pitch;
         for (uint32_t y = 0; y < f.pheight; y++)
         for (uint32_t x = 0; x < f.pwidth; x++) {
-            scr[y * f.pitch + x * 3 + 2] = r;
-            scr[y * f.pitch + x * 3 + 1] = g;
-            scr[y * f.pitch + x * 3 + 0] = b;
+            gbuf[y * f.pitch + x * 3 + 2] =
+            gbuf[y * f.pitch + x * 3 + 1] =
+            gbuf[y * f.pitch + x * 3 + 0] = 0;
         }
+        for (uint32_t y = 0; y < f.pheight; y++)
+        for (uint32_t x = 0; x < f.pwidth; x++) {
+            gbuf[y * f.pitch + x * 3 + 2] = r;
+            gbuf[y * f.pitch + x * 3 + 1] = (x == (frm << 1) % f.pwidth ? 0 : g);
+            gbuf[y * f.pitch + x * 3 + 0] = b;
+        }
+        uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
+        uint8_t *scr = buf + virt_y * f.pitch;
+        DSB();
+        memcpy(scr, gbuf, f.pitch * f.pheight);
         seed = ((seed * 1103515245) + 12345) & 0x7fffffff;
         r = (r == 255 ? r - 1 : (r == 144 ? r + 1 : r + ((seed >> 0) & 2) - 1));
         g = (g == 255 ? g - 1 : (g == 144 ? g + 1 : g + ((seed >> 1) & 2) - 1));
@@ -214,7 +223,9 @@ void kernel_main()
         frm++;
         print_setbuf(scr);
         printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
+        DMB();
         set_virtual_offs(0, virt_y);
         buffer_id ^= 1;
+        wait(5000);
     }
 }
