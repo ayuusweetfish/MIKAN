@@ -22,13 +22,8 @@ _addr_int_uhandler: .word   _int_uhandler
 _addr_int_irq:      .word   _int_irq
 _addr_int_fiq:      .word   _int_fiq
 
-_int_uinstr:
-_int_swi:
-_int_pfabort:
-_int_dabort:
-_int_uhandler:
 _int_fiq:
-    b       _loop
+    b       _reset
 
 _reset:
     # Initialize interrupt vector table
@@ -55,6 +50,15 @@ _reset:
     # Switch to system mode
     mrs     r0, cpsr
     orr     r0, r0, #0x1f
+    msr     cpsr_c, r0
+    # Set up stack pointer for system & user mode
+    # XXX: Of course this is not valid
+    mov     sp, #0x400000
+
+    # Back to supervisor mode
+    mrs     r0, cpsr
+    bic     r0, r0, #0x1f
+    orr     r0, r0, #0x13
     msr     cpsr_c, r0
 
     # Let's rock
@@ -84,3 +88,12 @@ _get_mode:
     mrs     r0, cpsr
     and     r0, #0x1f
     bx      lr
+
+.global _enter_user_mode
+_enter_user_mode:
+    mov     r1, lr
+    mrs     r0, cpsr
+    bic     r0, r0, #0x1f
+    orr     r0, r0, #0x10
+    msr     cpsr_c, r0
+    bx      r1

@@ -50,6 +50,7 @@
 void _enable_int();
 void _standby();
 uint32_t _get_mode();
+void _enter_user_mode();
 
 void send_mail(uint32_t data, uint8_t channel)
 {
@@ -179,6 +180,31 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
     new_frame = true;
 }
 
+void __attribute__((interrupt("IRQ"))) _int_uinstr()
+{
+    while (1) { murmur(2); wait(1000000); }
+}
+
+void __attribute__((interrupt("IRQ"))) _int_uhandler()
+{
+    while (1) { murmur(3); wait(1000000); }
+}
+
+void __attribute__((interrupt("IRQ"))) _int_swi()
+{
+    while (1) { murmur(4); wait(1000000); }
+}
+
+void __attribute__((interrupt("IRQ"))) _int_pfabort()
+{
+    while (1) { murmur(5); wait(1000000); }
+}
+
+void __attribute__((interrupt("IRQ"))) _int_dabort()
+{
+    while (1) { murmur(6); wait(1000000); }
+}
+
 void draw()
 {
     static uint32_t r = 255, g = 255, b = 255;
@@ -268,7 +294,7 @@ void kernel_main()
 
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
-    while (1) {
+    for (uint32_t i = 0; i < 500; i++) {
         new_frame = false;
         uint32_t t = get_time();
         draw();
@@ -280,5 +306,15 @@ void kernel_main()
         print_setbuf(scr);
         printf("|%d", _get_mode());
         last_time = t;
+    }
+
+    _enter_user_mode();
+    while (1) {
+        murmur(5);
+        wait(100000);
+        for (uint32_t i = 0; i < 3000000; i++) __asm__ __volatile__ ("");
+        *GPCLR1 = (1 << 15);
+        for (uint32_t i = 0; i < 3000000; i++) __asm__ __volatile__ ("");
+        *GPSET1 = (1 << 15);
     }
 }
