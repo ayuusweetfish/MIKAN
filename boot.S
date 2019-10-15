@@ -52,6 +52,11 @@ _reset:
     mov     r0, #0x40000000
     fmxr    fpexc, r0
 
+    # Switch to system mode
+    mrs     r0, cpsr
+    orr     r0, r0, #0x1f
+    msr     cpsr_c, r0
+
     # Let's rock
     b       kernel_startup
 
@@ -72,4 +77,10 @@ _standby:
     # http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka13332.html
     mov     r0, #0
     mcr     p15, 0, r0, c7, c0, 4
-    bx lr
+    bx      lr
+
+.global _get_mode
+_get_mode:
+    mrs     r0, cpsr
+    and     r0, #0x1f
+    bx      lr

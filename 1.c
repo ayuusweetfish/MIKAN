@@ -49,6 +49,7 @@
 
 void _enable_int();
 void _standby();
+uint32_t _get_mode();
 
 void send_mail(uint32_t data, uint8_t channel)
 {
@@ -268,7 +269,6 @@ void kernel_main()
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
     while (1) {
-        if (!new_frame) continue;
         new_frame = false;
         uint32_t t = get_time();
         draw();
@@ -278,7 +278,7 @@ void kernel_main()
         set_virtual_offs(0, virt_y);
         buffer_id ^= 1;
         print_setbuf(scr);
-        printf("|%d", t - last_time);
+        printf("|%d", _get_mode());
         last_time = t;
     }
 }
