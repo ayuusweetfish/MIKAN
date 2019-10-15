@@ -34,6 +34,7 @@
 
 #define INT_BASE    0x2000b000
 #define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
+#define INT_IRQENAB1    (volatile uint32_t *)(INT_BASE + 0x210)
 #define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
 
 #define INT_IRQ_ARMTMR  1
@@ -115,7 +116,8 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
     static bool on = false;
     *((on = !on) ? GPCLR1 : GPSET1) = (1 << 15);
     DMB(); DSB();
-    *ARMTMR_IRQC = 1;
+    *SYSTMR_CS = 2;
+    *SYSTMR_C1 = *SYSTMR_CLO + 1000000;
     DMB(); DSB();
 }
 
@@ -125,11 +127,15 @@ void kernel_main()
     *GPFSEL4 |= (1 << 21);
     DMB();
 
-    *ARMTMR_LOAD = 0x40000;
-    // Peripherals document, p. 197
-    *ARMTMR_CTRL = (1 << 7) | (1 << 5) | (1 << 1);
-
-    *INT_IRQBASENAB = INT_IRQ_ARMTMR;
+    // Enable interrupts from the system timer
+    // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
+    DSB();
+    *SYSTMR_CS = 2;
+    *SYSTMR_C1 = *SYSTMR_CLO + 1000000;
+    DMB();
+    DSB();
+    *INT_IRQENAB1 = 2;
+    DMB();
 
     _enable_int();
 

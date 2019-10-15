@@ -3,6 +3,7 @@
 .global _start
 _start:
     # Interrupt vector table
+    # Will branch to _reset initially due to the first entry
     ldr     pc, _addr_reset
     ldr     pc, _addr_int_uinstr
     ldr     pc, _addr_int_swi
@@ -31,7 +32,7 @@ _int_fiq:
 
 _reset:
     # Initialize interrupt vector table
-    # Copy to address 0x0
+    # Copy instructions and constant values to address 0x0
     mov     r0, #0x8000
     mov     r1, #0x0
     ldmia   r0!, {r2-r9}
