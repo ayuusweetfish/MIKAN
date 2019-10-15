@@ -124,6 +124,23 @@ uint32_t get_pixel_order()
     return buf.tag.val[0];
 }
 
+void set_virtual_offs(uint32_t x, uint32_t y)
+{
+    mbox_buf(2) buf;
+
+    buf.size = sizeof buf;
+    buf.code = 0;
+    buf.tag.id = 0x48009;   // Set virtual offset
+    buf.tag.size = 8;
+    buf.tag.code = 0;
+    buf.tag.val[0] = x;
+    buf.tag.val[1] = y;
+    buf.end_tag = 0;
+
+    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
+    recv_mail(MAIL0_CH_PROP);
+}
+
 void kernel_main()
 {
     DSB();
@@ -143,7 +160,7 @@ void kernel_main()
     f_volatile.pwidth = 512;
     f_volatile.pheight = 512;
     f_volatile.vwidth = 512;
-    f_volatile.vheight = 512;
+    f_volatile.vheight = 512 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -167,7 +184,13 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
-    while (1) { }
+    while (1) {
+        print("Heya\n");
+        set_virtual_offs(0, 0);
+        wait(500000);
+        set_virtual_offs(0, f.pheight);
+        wait(500000);
+    }
 
 /*
     while (0) {
