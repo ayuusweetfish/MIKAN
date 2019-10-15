@@ -116,8 +116,8 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
     static bool on = false;
     *((on = !on) ? GPCLR1 : GPSET1) = (1 << 15);
     DMB(); DSB();
-    *SYSTMR_CS = 2;
-    *SYSTMR_C1 = *SYSTMR_CLO + 1000000;
+    *SYSTMR_CS = 1;
+    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
     DMB(); DSB();
 }
 
@@ -130,11 +130,11 @@ void kernel_main()
     // Enable interrupts from the system timer
     // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
     DSB();
-    *SYSTMR_CS = 2;
-    *SYSTMR_C1 = *SYSTMR_CLO + 1000000;
+    *SYSTMR_CS = 1;
+    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
     DMB();
     DSB();
-    *INT_IRQENAB1 = 2;
+    *INT_IRQENAB1 = 1;
     DMB();
 
     _enable_int();
