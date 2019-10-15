@@ -25,6 +25,19 @@
 
 #define MAIL0_CH_FB 1
 
+#define ARMTMR_BASE 0x2000b000
+
+#define ARMTMR_LOAD (volatile uint32_t *)(ARMTMR_BASE + 0x400)
+#define ARMTMR_VAL  (volatile uint32_t *)(ARMTMR_BASE + 0x404)
+#define ARMTMR_CTRL (volatile uint32_t *)(ARMTMR_BASE + 0x408)
+#define ARMTMR_IRQC (volatile uint32_t *)(ARMTMR_BASE + 0x40c)
+
+#define INT_BASE    0x2000b000
+#define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
+#define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
+
+#define INT_IRQ_ARMTMR  1
+
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 
@@ -96,20 +109,34 @@ void murmur(uint32_t num)
     DMB();
 }
 
+void __attribute__((interrupt("IRQ"))) _int_irq()
+{
+    DMB(); DSB();
+    static bool on = false;
+    *((on = !on) ? GPCLR1 : GPSET1) = (1 << 15);
+    DMB(); DSB();
+    *ARMTMR_IRQC = 1;
+    DMB(); DSB();
+}
+
 void kernel_main()
 {
     DSB();
     *GPFSEL4 |= (1 << 21);
     DMB();
 
+    *ARMTMR_LOAD = 0x40000;
+    // Peripherals document, p. 197
+    *ARMTMR_CTRL = (1 << 7) | (1 << 5) | (1 << 1);
+
+    *INT_IRQBASENAB = INT_IRQ_ARMTMR;
+
     _enable_int();
 
-    murmur(5);
-
-    _standby();
-
-    murmur(2);
-    while (1) { }
+    while (1) _standby();
+    // Ensure we don't reach here!
+    // If the ACT LED stays on then something went wrong
+    while (1) *GPCLR1 = (1 << 15);
 
 /*
     DSB();

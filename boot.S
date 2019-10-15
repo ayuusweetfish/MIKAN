@@ -2,6 +2,43 @@
 
 .global _start
 _start:
+    # Interrupt vector table
+    ldr     pc, _addr_reset
+    ldr     pc, _addr_int_uinstr
+    ldr     pc, _addr_int_swi
+    ldr     pc, _addr_int_pfabort
+    ldr     pc, _addr_int_dabort
+    ldr     pc, _addr_int_uhandler
+    ldr     pc, _addr_int_irq
+    ldr     pc, _addr_int_fiq
+
+_addr_reset:        .word   _reset
+_addr_int_uinstr:   .word   _int_uinstr
+_addr_int_swi:      .word   _int_swi
+_addr_int_pfabort:  .word   _int_pfabort
+_addr_int_dabort:   .word   _int_dabort
+_addr_int_uhandler: .word   _int_uhandler
+_addr_int_irq:      .word   _int_irq
+_addr_int_fiq:      .word   _int_fiq
+
+_int_uinstr:
+_int_swi:
+_int_pfabort:
+_int_dabort:
+_int_uhandler:
+_int_fiq:
+    b       _loop
+
+_reset:
+    # Initialize interrupt vector table
+    # Copy to address 0x0
+    mov     r0, #0x8000
+    mov     r1, #0x0
+    ldmia   r0!, {r2-r9}
+    stmia   r1!, {r2-r9}
+    ldmia   r0!, {r2-r9}
+    stmia   r1!, {r2-r9}
+
     # Initialize stack pointer
     mov     sp, #0x8000
 
