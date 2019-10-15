@@ -27,8 +27,25 @@
 #define MAIL0_CH_FB     1
 #define MAIL0_CH_PROP   8
 
+#define ARMTMR_BASE 0x2000b000
+
+#define ARMTMR_LOAD (volatile uint32_t *)(ARMTMR_BASE + 0x400)
+#define ARMTMR_VAL  (volatile uint32_t *)(ARMTMR_BASE + 0x404)
+#define ARMTMR_CTRL (volatile uint32_t *)(ARMTMR_BASE + 0x408)
+#define ARMTMR_IRQC (volatile uint32_t *)(ARMTMR_BASE + 0x40c)
+
+#define INT_BASE    0x2000b000
+#define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
+#define INT_IRQENAB1    (volatile uint32_t *)(INT_BASE + 0x210)
+#define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
+
+#define INT_IRQ_ARMTMR  1
+
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
+
+void _enable_int();
+void _standby();
 
 void send_mail(uint32_t data, uint8_t channel)
 {
@@ -144,17 +161,34 @@ void set_virtual_offs(uint32_t x, uint32_t y)
     recv_mail(MAIL0_CH_PROP);
 }
 
+void __attribute__((interrupt("IRQ"))) _int_irq()
+{
+    DMB(); DSB();
+    static bool on = false;
+    *((on = !on) ? GPCLR1 : GPSET1) = (1 << 15);
+    DMB(); DSB();
+    *SYSTMR_CS = 1;
+    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
+    DMB(); DSB();
+}
+
 void kernel_main()
 {
     DSB();
     *GPFSEL4 |= (1 << 21);
     DMB();
 
-/*
+    // Enable interrupts from the system timer
+    // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
     DSB();
-    csudUsbInitialise();
+    *SYSTMR_CS = 1;
+    *SYSTMR_C0 = *SYSTMR_CLO + 1000000;
     DMB();
-*/
+    DSB();
+    *INT_IRQENAB1 = 1;
+    DMB();
+
+    _enable_int();
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
@@ -184,15 +218,6 @@ void kernel_main()
 
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
-
-/*
-    while (0) {
-        print_putchar('\r');
-        DMB();
-        csudUsbCheckForChange();
-        DSB();
-    }
-*/
 
     uint32_t r = 255, g = 255, b = 255;
     uint32_t seed = 4481192 + 415092;
@@ -226,6 +251,10 @@ void kernel_main()
         DMB();
         set_virtual_offs(0, virt_y);
         buffer_id ^= 1;
-        wait(5000);
     }
+
+    while (1) _standby();
+    // Ensure we don't reach here!
+    // If the ACT LED stays on then something went wrong
+    while (1) *GPCLR1 = (1 << 15);
 }
