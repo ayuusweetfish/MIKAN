@@ -184,14 +184,6 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
-    while (1) {
-        print("Heya\n");
-        set_virtual_offs(0, 0);
-        wait(500000);
-        set_virtual_offs(0, f.pheight);
-        wait(500000);
-    }
-
 /*
     while (0) {
         print_putchar('\r');
@@ -199,16 +191,20 @@ void kernel_main()
         csudUsbCheckForChange();
         DSB();
     }
+*/
 
     uint32_t r = 255, g = 255, b = 255;
     uint32_t seed = 4481192 + 415092;
     uint32_t frm = 0, t0 = get_time(), t;
+    uint8_t buffer_id = 0;
     while (1) {
-        for (uint32_t y = f.vheight - 1; y != UINT32_MAX; y--)
-        for (uint32_t x = 0; x < f.vwidth; x++) {
-            buf[y * f.pitch + x * 3 + 2] = r;
-            buf[y * f.pitch + x * 3 + 1] = g;
-            buf[y * f.pitch + x * 3 + 0] = b;
+        uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
+        uint8_t *scr = buf + virt_y * f.pitch;
+        for (uint32_t y = 0; y < f.pheight; y++)
+        for (uint32_t x = 0; x < f.pwidth; x++) {
+            scr[y * f.pitch + x * 3 + 2] = r;
+            scr[y * f.pitch + x * 3 + 1] = g;
+            scr[y * f.pitch + x * 3 + 0] = b;
         }
         seed = ((seed * 1103515245) + 12345) & 0x7fffffff;
         r = (r == 255 ? r - 1 : (r == 144 ? r + 1 : r + ((seed >> 0) & 2) - 1));
@@ -216,7 +212,9 @@ void kernel_main()
         b = (b == 255 ? b - 1 : (b == 144 ? b + 1 : b + ((seed >> 2) & 2) - 1));
         t = get_time() - t0;
         frm++;
+        print_setbuf(scr);
         printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
+        set_virtual_offs(0, virt_y);
+        buffer_id ^= 1;
     }
-*/
 }

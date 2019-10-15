@@ -24,6 +24,11 @@ void print_init(uint8_t *_buf, uint32_t _w, uint32_t _h, uint32_t _pitch)
     seed = 0x5f3759df;
 }
 
+void print_setbuf(uint8_t *_buf)
+{
+    buf = _buf;
+}
+
 static inline void reset_vert()
 {
     y = 0;

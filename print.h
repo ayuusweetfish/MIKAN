@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void print_init(uint8_t *buf, uint32_t w, uint32_t h, uint32_t pitch);
+void print_setbuf(uint8_t *buf);
 
 void print_putchar(char ch);
 
