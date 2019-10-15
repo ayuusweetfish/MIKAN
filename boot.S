@@ -20,3 +20,18 @@ _start:
 _loop:
     # In case kernel returns O_O
     b       _loop
+
+.global _enable_int
+_enable_int:
+    mrs     r0, cpsr
+    bic     r0, r0, #0x80
+    msr     cpsr_c, r0
+    bx      lr
+
+.global _standby
+_standby:
+    # ARM1176JZF-S does not implement the WFI instruction
+    # http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.faqs/ka13332.html
+    mov     r0, #0
+    mcr     p15, 0, r0, c7, c0, 4
+    bx lr

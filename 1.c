@@ -28,6 +28,9 @@
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 
+void _enable_int();
+void _standby();
+
 void send_mail(uint32_t data, uint8_t channel)
 {
     DSB();
@@ -99,8 +102,16 @@ void kernel_main()
     *GPFSEL4 |= (1 << 21);
     DMB();
 
+    _enable_int();
+
     murmur(5);
 
+    _standby();
+
+    murmur(2);
+    while (1) { }
+
+/*
     DSB();
     csudUsbInitialise();
     DMB();
@@ -156,4 +167,5 @@ void kernel_main()
         frm++;
         printf("\rT=%d, F=%d, FPS=%d", t / 1000000, frm, frm * 1000000 / t);
     }
+*/
 }
