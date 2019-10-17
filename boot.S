@@ -86,10 +86,9 @@ _enable_mmu:
     # Tell the coprocessor about the table address (ARM ARM p. B4-41/B5-18)
     mcr     p15, 0, r0, c2, c0, 0
     mcr     p15, 0, r0, c2, c0, 1
-    # Set up domain (ARM ARM p. B5-18)
-    # TODO: Figure out more in the manual
-    mvn     r1, #0
-    bic     r1, #0xc
+    # Set domain controll access to Manager (ARM ARM p. B4-10/B5-18)
+    # Also http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0360f/CHDGIJFB.html
+    mov     r1, #0x3
     mcr     p15, 0, r1, c3, c0, 0
     # Turn on MMU, with i/d caches (ARM ARM p. B3-12/B4-40/B5-18/B6-18)
     mrc     p15, 0, r1, c1, c0, 0
