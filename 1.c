@@ -257,6 +257,7 @@ void kernel_main()
 
     _enable_int();
 
+/*
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
     f_volatile.pwidth = 128;
@@ -307,6 +308,10 @@ void kernel_main()
         printf("|%d", _get_mode());
         last_time = t;
     }
+*/
+
+    murmur(10);
+    wait(1000000);
 
     _enter_user_mode();
     while (1) {
