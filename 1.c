@@ -61,7 +61,7 @@ void mmu_table_section(uint32_t vaddr, uint32_t paddr, uint32_t flags)
 {
     uint32_t *table_addr = (uint32_t *)((uint8_t *)mmu_table + (vaddr >> 18));
     uint32_t table_val = paddr | flags | 2;
-    // 2 = Section; see ARM ARM B4-35
+    // 2 = Section; see ARM ARM B4-27
     *table_addr = table_val;
 }
 
@@ -338,9 +338,13 @@ void kernel_main()
     *GPCLR1 = (1 << 15);
     wait(1000000);
 
-    mmu_table_section(0x20000000, 0x20000000, 1 << 5);
-    mmu_table_section(0x20200000, 0x20200000, 1 << 5);
-    _set_domain_access((3 << 2) | 3);
+    // Set domain to 1
+    // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
+    // Doing so will result in a permission fault later in user mode
+    mmu_table_section(0x20000000, 0x20000000, (1 << 5) | (1 << 10));
+    mmu_table_section(0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    // Client for domain 1, Manager for domain 0
+    _set_domain_access((1 << 2) | 3);
     _flush_mmu_table();
 
     *GPSET1 = (1 << 15);
@@ -348,7 +352,7 @@ void kernel_main()
     *GPCLR1 = (1 << 15);
     wait(1000000);
 
-    // Uncommenting will result in a fault
+    // Uncommenting will result in a domain fault
     //_set_domain_access(3);
     _enter_user_mode();
     while (1) {
