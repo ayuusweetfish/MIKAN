@@ -88,7 +88,7 @@ _enable_mmu:
     mcr     p15, 0, r0, c2, c0, 1
     # Set domain controll access to Manager (ARM ARM p. B4-10/B5-18)
     # Also http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0360f/CHDGIJFB.html
-    mov     r1, #0x3
+    mov     r1, #0xf
     mcr     p15, 0, r1, c3, c0, 0
     # Turn on MMU, with i/d caches (ARM ARM p. B3-12/B4-40/B5-18/B6-18)
     mrc     p15, 0, r1, c1, c0, 0
@@ -97,6 +97,19 @@ _enable_mmu:
     # Enable i-cache; B3-12
     orr     r1, r1, #0x1000
     mcr     p15, 0, r1, c1, c0, 0
+    bx      lr
+
+.global _flush_mmu_table
+_flush_mmu_table:
+    mov     r0, #0
+    mcr     p15, 0, r0, c7, c7, 0
+    mcr     p15, 0, r0, c8, c7, 0
+    bx      lr
+
+# r0 is the desired domain access vector (ARM ARM p. B4-10/B4-42)
+.global _set_domain_access
+_set_domain_access:
+    mcr     p15, 0, r0, c3, c0, 0
     bx      lr
 
 .global _standby

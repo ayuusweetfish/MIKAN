@@ -49,6 +49,8 @@
 
 void _enable_int();
 void _enable_mmu(uint32_t table_base_addr);
+void _set_domain_access(uint32_t control);
+void _flush_mmu_table();
 void _standby();
 uint32_t _get_mode();
 void _enter_user_mode();
@@ -193,26 +195,31 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
 
 void __attribute__((interrupt("IRQ"))) _int_uinstr()
 {
+    _set_domain_access((3 << 2) | 3);
     while (1) { murmur(2); wait(1000000); }
 }
 
 void __attribute__((interrupt("IRQ"))) _int_uhandler()
 {
+    _set_domain_access((3 << 2) | 3);
     while (1) { murmur(3); wait(1000000); }
 }
 
 void __attribute__((interrupt("IRQ"))) _int_swi()
 {
+    _set_domain_access((3 << 2) | 3);
     while (1) { murmur(4); wait(1000000); }
 }
 
 void __attribute__((interrupt("IRQ"))) _int_pfabort()
 {
+    _set_domain_access((3 << 2) | 3);
     while (1) { murmur(5); wait(1000000); }
 }
 
 void __attribute__((interrupt("IRQ"))) _int_dabort()
 {
+    _set_domain_access((3 << 2) | 3);
     while (1) { murmur(6); wait(1000000); }
 }
 
@@ -328,10 +335,21 @@ void kernel_main()
     }
 */
 
-    // XXX: This is not working any more for now :(
-    murmur(3);
+    *GPCLR1 = (1 << 15);
     wait(1000000);
 
+    mmu_table_section(0x20000000, 0x20000000, 1 << 5);
+    mmu_table_section(0x20200000, 0x20200000, 1 << 5);
+    _set_domain_access((3 << 2) | 3);
+    _flush_mmu_table();
+
+    *GPSET1 = (1 << 15);
+    wait(1000000);
+    *GPCLR1 = (1 << 15);
+    wait(1000000);
+
+    // Uncommenting will result in a fault
+    //_set_domain_access(3);
     _enter_user_mode();
     while (1) {
         //murmur(5);
