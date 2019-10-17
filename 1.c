@@ -48,9 +48,20 @@
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 
 void _enable_int();
+void _enable_mmu(uint32_t table_base_addr);
 void _standby();
 uint32_t _get_mode();
 void _enter_user_mode();
+
+uint32_t mmu_table[4096] __attribute__((aligned(1 << 14)));
+
+void mmu_table_section(uint32_t vaddr, uint32_t paddr, uint32_t flags)
+{
+    uint32_t *table_addr = (uint32_t *)((uint8_t *)mmu_table + (vaddr >> 18));
+    uint32_t table_val = paddr | flags | 2;
+    // 2 = Section; see ARM ARM B4-35
+    *table_addr = table_val;
+}
 
 void send_mail(uint32_t data, uint8_t channel)
 {
@@ -257,6 +268,13 @@ void kernel_main()
 
     _enable_int();
 
+    // Prepare TLB
+    // Enable MMU!
+    for (uint32_t i = 0; i < 4096; i++) {
+        mmu_table_section(i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
+    }
+    _enable_mmu((uint32_t)mmu_table);
+
 /*
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
@@ -310,16 +328,17 @@ void kernel_main()
     }
 */
 
-    murmur(10);
+    // XXX: This is not working any more for now :(
+    murmur(3);
     wait(1000000);
 
     _enter_user_mode();
     while (1) {
-        murmur(5);
-        wait(100000);
-        for (uint32_t i = 0; i < 3000000; i++) __asm__ __volatile__ ("");
+        //murmur(5);
+        //wait(100000);
+        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
         *GPCLR1 = (1 << 15);
-        for (uint32_t i = 0; i < 3000000; i++) __asm__ __volatile__ ("");
+        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
         *GPSET1 = (1 << 15);
     }
 }
