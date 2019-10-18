@@ -1,2 +1,2 @@
 #!/bin/sh
-arm-none-eabi-objdump -h a.out
+arm-none-eabi-objdump -x a.out

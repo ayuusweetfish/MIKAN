@@ -1,2 +1,2 @@
 #!/bin/sh
-arm-none-eabi-objdump -h target/arm-unknown-linux-gnueabihf/release/rs
+arm-none-eabi-objdump -x target/arm-unknown-linux-gnueabihf/debug/rs | head -n 40

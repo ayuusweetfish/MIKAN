@@ -2,7 +2,7 @@ ENTRY(main)
 
 SECTIONS
 {
-    . = 0x8000;
+    . = 0x80000000;
 
     .text : { *(.text .text.*) }
     /DISCARD/ : { *(.ARM.exidx.*) }

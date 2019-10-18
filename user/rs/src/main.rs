@@ -4,8 +4,13 @@
 
 use core::panic::PanicInfo;
 
+fn qwq() -> u8 {
+    42
+}
+
 #[no_mangle]
 pub extern fn main() {
+    let _a = qwq();
     loop { }
 }
 
