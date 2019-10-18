@@ -57,8 +57,13 @@ uint8_t load_elf(const char *buf)
     const elf_shdr *shdr = get_shdr(ehdr);
     for (uint32_t i = 0; i < ehdr->shnum; i++) {
         const elf_shdr *section = shdr + i;
-        ELF_LOG("section type = 0x%x, flags = 0x%x, size = %d\n",
-            section->type, section->flags, section->size);
+        ELF_LOG("section [%s] type = 0x%x, flags = %c%c%c, addr = 0x%x, "
+            "offset = 0x%x, size = %d\n",
+            get_strtab_ent(ehdr, section->name), section->type,
+            (section->flags & 1) ? 'W' : '.',
+            (section->flags & 2) ? 'A' : '.',
+            (section->flags & 4) ? 'X' : '.',
+            section->addr, section->offs, section->size);
     }
 
     return ELF_E_NONE;
