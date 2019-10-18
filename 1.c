@@ -55,6 +55,8 @@ void _standby();
 uint32_t _get_mode();
 void _enter_user_mode();
 
+void syscall(uint32_t code, uint32_t arg);
+
 uint32_t mmu_table[4096] __attribute__((aligned(1 << 14)));
 
 void mmu_table_section(uint32_t vaddr, uint32_t paddr, uint32_t flags)
@@ -193,31 +195,36 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
     new_frame = true;
 }
 
-void __attribute__((interrupt("IRQ"))) _int_uinstr()
+void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
     _set_domain_access((3 << 2) | 3);
     while (1) { murmur(2); wait(1000000); }
 }
 
-void __attribute__((interrupt("IRQ"))) _int_uhandler()
+void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
 {
     _set_domain_access((3 << 2) | 3);
     while (1) { murmur(3); wait(1000000); }
 }
 
-void __attribute__((interrupt("IRQ"))) _int_swi()
+void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1)
 {
     _set_domain_access((3 << 2) | 3);
-    while (1) { murmur(4); wait(1000000); }
+    if (r0 == 42) {
+        *GPCLR1 = r1;
+    } else if (r0 == 43) {
+        *GPSET1 = r1;
+    }
+    _set_domain_access((1 << 2) | 3);
 }
 
-void __attribute__((interrupt("IRQ"))) _int_pfabort()
+void __attribute__((interrupt("ABORT"))) _int_pfabort()
 {
     _set_domain_access((3 << 2) | 3);
     while (1) { murmur(5); wait(1000000); }
 }
 
-void __attribute__((interrupt("IRQ"))) _int_dabort()
+void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
     _set_domain_access((3 << 2) | 3);
     while (1) { murmur(6); wait(1000000); }
@@ -347,20 +354,18 @@ void kernel_main()
     _set_domain_access((1 << 2) | 3);
     _flush_mmu_table();
 
-    *GPSET1 = (1 << 15);
-    wait(1000000);
-    *GPCLR1 = (1 << 15);
-    wait(1000000);
-
     // Uncommenting will result in a domain fault
     //_set_domain_access(3);
     _enter_user_mode();
     while (1) {
-        //murmur(5);
-        //wait(100000);
         for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        *GPCLR1 = (1 << 15);
+        //*GPCLR1 = (1 << 15);
+        syscall(42, 1 << 15);
         for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        *GPSET1 = (1 << 15);
+        //*GPSET1 = (1 << 15);
+        syscall(43, 1 << 15);
+        // Trigger a data abort after 5 blinks
+        static uint32_t count = 0;
+        if (++count >= 5) *GPSET1 = (1 << 15);
     }
 }

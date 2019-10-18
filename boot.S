@@ -134,3 +134,8 @@ _enter_user_mode:
     orr     r0, r0, #0x10
     msr     cpsr_c, r0
     bx      r1
+
+.global syscall
+syscall:
+    svc     #0
+    bx      lr
