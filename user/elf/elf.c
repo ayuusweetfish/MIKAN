@@ -35,6 +35,11 @@ static inline const elf_shdr *get_shdr(const elf_ehdr *ehdr)
     return (const elf_shdr *)((const char *)ehdr + ehdr->shoffs);
 }
 
+static inline const elf_phdr *get_phdr(const elf_ehdr *ehdr)
+{
+    return (const elf_phdr *)((const char *)ehdr + ehdr->phoffs);
+}
+
 static inline const char *get_strtab(const elf_ehdr *ehdr)
 {
     return (ehdr->shstrndx == 0) ?  NULL :
@@ -64,6 +69,21 @@ uint8_t load_elf(const char *buf)
             (section->flags & 2) ? 'A' : '.',
             (section->flags & 4) ? 'X' : '.',
             section->addr, section->offs, section->size);
+    }
+
+    const elf_phdr *phdr = get_phdr(ehdr);
+    for (uint32_t i = 0; i < ehdr->phnum; i++) {
+        const elf_phdr *program = phdr + i;
+        ELF_LOG("program type = 0x%x, offset = 0x%x, "
+            "vaddr = 0x%x, paddr = 0x%x, filesz = %d, memsz = %d, "
+            "flags = %c%c%c, align = %d\n",
+            program->type, program->offs,
+            program->vaddr, program->paddr,
+            program->filesz, program->memsz,
+            (program->flags & 4) ? 'R' : ' ',
+            (program->flags & 2) ? 'W' : ' ',
+            (program->flags & 1) ? 'X' : ' ',
+            program->align);
     }
 
     return ELF_E_NONE;

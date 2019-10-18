@@ -39,6 +39,17 @@ typedef struct {
     elf_word entsize;
 } elf_shdr;
 
+typedef struct {
+    elf_word type;
+    elf_offs offs;
+    elf_addr vaddr;
+    elf_addr paddr;
+    elf_word filesz;
+    elf_word memsz;
+    elf_word flags;
+    elf_word align;
+} elf_phdr;
+
 #define ELF_E_NONE      0
 #define ELF_E_INVALID   1
 #define ELF_E_UNSUPPORT 2
