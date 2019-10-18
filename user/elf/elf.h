@@ -26,6 +26,19 @@ typedef struct {
     elf_half shstrndx;
 } elf_ehdr;
 
+typedef struct {
+    elf_word name;
+    elf_word type;
+    elf_word flags;
+    elf_addr addr;
+    elf_offs offs;
+    elf_word size;
+    elf_word link;
+    elf_word info;
+    elf_word addralign;
+    elf_word entsize;
+} elf_shdr;
+
 #define ELF_E_NONE      0
 #define ELF_E_INVALID   1
 #define ELF_E_UNSUPPORT 2
