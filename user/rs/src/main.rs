@@ -4,6 +4,9 @@
 
 use core::panic::PanicInfo;
 
+pub static mut O_O: i32 = 42;
+pub static Q_Q: &'static str = "=~=";
+
 fn qwq() -> u8 {
     42
 }

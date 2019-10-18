@@ -3,6 +3,10 @@
 extern unsigned char _bss_begin;
 extern unsigned char _bss_end;
 
+uint8_t qwq[1024];
+uint8_t qvq[] = "=~=";
+const uint8_t *quq = "-v-";
+
 void crt_init()
 {
     unsigned char *begin = &_bss_begin, *end = &_bss_end;
