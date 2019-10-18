@@ -1,0 +1,10 @@
+[build]
+target = "arm-unknown-linux-gnueabihf"
+rustflags = [
+    "--emit=obj",
+    "-C", "link-arg=-static",
+    "-C", "link-arg=-Tlink.ld",
+]
+
+[target.arm-unknown-linux-gnueabihf]
+linker = "arm-none-eabi-ld"
