@@ -32,7 +32,8 @@ int main(int argc, char *argv[])
     fclose(f);
 
     printf("File size %lu B\n", len);
-    load_elf(buf);
+    uint8_t ret = load_elf(buf);
+    printf("load_elf returns %d\n", ret);
 
     return 0;
 }

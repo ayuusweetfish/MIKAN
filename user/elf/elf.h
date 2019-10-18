@@ -26,6 +26,13 @@ typedef struct {
     elf_half shstrndx;
 } elf_ehdr;
 
-void load_elf(const char *buf);
+#define ELF_E_NONE      0
+#define ELF_E_INVALID   1
+#define ELF_E_UNSUPPORT 2
+
+uint8_t load_elf(const char *buf);
+
+#include <stdio.h>
+#define ELF_LOG printf
 
 #endif
