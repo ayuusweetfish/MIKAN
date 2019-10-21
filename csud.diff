@@ -1,33 +1,3 @@
-diff --git a/include/hcd/dwc/designware20.h b/include/hcd/dwc/designware20.h
-index f662c27..f6d6c52 100644
---- a/include/hcd/dwc/designware20.h
-+++ b/include/hcd/dwc/designware20.h
-@@ -656,8 +656,8 @@ extern u32 RootHubDeviceNumber;
- 	both in and out. 
- */
- Result HcdProcessRootHubMessage(struct UsbDevice *device, 
--	struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
--	struct UsbDeviceRequest *request);
-+	struct UsbPipeAddress pipe, volatile void* buffer, u32 bufferLength,
-+	volatile struct UsbDeviceRequest *request);
- 
- /** 
- 	\brief Writes through a register from the cache to the device.
-diff --git a/include/hcd/hcd.h b/include/hcd/hcd.h
-index ab5c454..eb1ff9a 100644
---- a/include/hcd/hcd.h
-+++ b/include/hcd/hcd.h
-@@ -70,8 +70,8 @@ Result HcdDeinitialise();
- 	speed transactions are always split.
- */
- Result HcdSumbitControlMessage(struct UsbDevice *device, 
--	struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
--	struct UsbDeviceRequest *request);
-+	struct UsbPipeAddress pipe, volatile void* buffer, u32 bufferLength,
-+	volatile struct UsbDeviceRequest *request);
- 
- #include "dwc/designware20.h"
- 
 diff --git a/source/device/hid/hid.c b/source/device/hid/hid.c
 index 1370af3..5b11d01 100644
 --- a/source/device/hid/hid.c
@@ -52,116 +22,48 @@ index 1370af3..5b11d01 100644
 \ No newline at end of file
 +}
 diff --git a/source/hcd/dwc/designware20.c b/source/hcd/dwc/designware20.c
-index a8e4c8b..c967c78 100644
+index a8e4c8b..62dd4e4 100644
 --- a/source/hcd/dwc/designware20.c
 +++ b/source/hcd/dwc/designware20.c
-@@ -36,6 +36,9 @@ void WriteThroughReg(volatile const void* reg) {
- 	WriteThroughRegMask(reg, 0);
- }
- void WriteThroughRegMask(volatile const void* reg, u32 maskOr) {
-+    u8 *Heap = 0x300000;
-+    if ((u8 *)reg < Heap || (u8 *)reg >= Heap + 0x40000)
-+        LOGF("quq %d %d\n", (u32)reg, (u32)Heap);
- 	if ((u32)reg - (u32)Core < sizeof(struct CoreGlobalRegs)) {
- 		maskOr |= 0xffffffff;
- 		*(u32*)((u32)reg - (u32)Core + (u32)CorePhysical) = *((u32*)reg) & maskOr;
-@@ -55,6 +58,9 @@ void WriteThroughRegMask(volatile const void* reg, u32 maskOr) {
- 	}
- }
- void ReadBackReg(volatile const void* reg) {
-+    u8 *Heap = 0x300000;
-+    if ((u8 *)reg < Heap || (u8 *)reg >= Heap + 0x40000)
-+        LOGF("qvq %d %d\n", (u32)reg, (u32)Heap);
- 	if ((u32)reg - (u32)Core < sizeof(struct CoreGlobalRegs)) {
- 		switch ((u32)reg - (u32)Core) {
- 		case 0x44: // Core->Hardware
-@@ -73,6 +79,9 @@ void ReadBackReg(volatile const void* reg) {
- 	}
- }
- void ClearReg(volatile const void* reg) {
-+    u8 *Heap = 0x300000;
-+    if ((u8 *)reg < Heap || (u8 *)reg >= Heap + 0x40000)
-+        LOGF("qwq %d %d\n", (u32)reg, (u32)Heap);
- 	if ((u32)reg - (u32)Core < sizeof(struct CoreGlobalRegs)) {
- 		switch ((u32)reg - (u32)Core) {
- 		case 0x44: // Core->Hardware
-@@ -91,6 +100,9 @@ void ClearReg(volatile const void* reg) {
- 	}
- }
- void SetReg(volatile const void* reg) {
-+    u8 *Heap = 0x300000;
-+    if ((u8 *)reg < Heap || (u8 *)reg >= Heap + 0x40000)
-+        LOGF("qnq %d %d\n", (u32)reg, (u32)Heap);
- 	u32 value;
- 	if ((u32)reg - (u32)Core < sizeof(struct CoreGlobalRegs)) {
- 		value = 0xffffffff;
-@@ -223,7 +235,7 @@ Result HcdReceiveFifoFlush() {
- 	Prepares a channel to communicated with the device specified in pipe.
- */
- Result HcdPrepareChannel(struct UsbDevice *device, u8 channel,
--	u32 length, enum PacketId type, struct UsbPipeAddress *pipe) {
-+	u32 length, enum PacketId type, volatile struct UsbPipeAddress *pipe) {
- 	if (channel > Core->Hardware.HostChannelCount) {
- 		LOGF("HCD: Channel %d is not available on this host.\n", channel);
- 		return ErrorArgument;
-@@ -341,8 +353,8 @@ Result HcdChannelInterruptToError(struct UsbDevice *device, struct ChannelInterr
- }
- 
- Result HcdChannelSendWaitOne(struct UsbDevice *device, 
--	struct UsbPipeAddress *pipe, u8 channel, void* buffer, u32 bufferLength, u32 bufferOffset,
--	struct UsbDeviceRequest *request) {
-+	volatile struct UsbPipeAddress *pipe, u8 channel, volatile void* buffer, u32 bufferLength, u32 bufferOffset,
-+	volatile struct UsbDeviceRequest *request) {
- 	Result result;
- 	u32 timeout, tries, globalTries, actualTries;
- 	
-@@ -452,8 +464,8 @@ Result HcdChannelSendWaitOne(struct UsbDevice *device,
- }
- 
- Result HcdChannelSendWait(struct UsbDevice *device, 
--	struct UsbPipeAddress *pipe, u8 channel, void* buffer, u32 bufferLength, 
--	struct UsbDeviceRequest *request, enum PacketId packetId) {
-+	volatile struct UsbPipeAddress *pipe, u8 channel, volatile void* buffer, u32 bufferLength, 
-+	volatile struct UsbDeviceRequest *request, enum PacketId packetId) {
- 	Result result;
- 	u32 packets, transfer, tries;
- 	
-@@ -497,13 +509,17 @@ retry:
- }
- 
- Result HcdSumbitControlMessage(struct UsbDevice *device, 
--	struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
--	struct UsbDeviceRequest *request) {
-+	struct UsbPipeAddress pipe, volatile void* buffer, u32 bufferLength,
-+	volatile struct UsbDeviceRequest *request) {
+@@ -500,7 +500,10 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 	struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
+ 	struct UsbDeviceRequest *request) {
  	Result result;
 -	struct UsbPipeAddress tempPipe;
-+        static volatile struct UsbDeviceRequest qwqreq __attribute__((section(".bss.dmem")));
++	static volatile struct UsbDeviceRequest qwqreq __attribute__((section(".bss.dmem")));
 +	static volatile struct UsbPipeAddress tempPipe __attribute__((section(".bss.dmem")));
-+        qwqreq = *request;
-+        request = &qwqreq;
++	qwqreq = *request;
++	request = (struct UsbDeviceRequest *)&qwqreq;
  	if (pipe.Device == RootHubDeviceNumber) {
  		return HcdProcessRootHubMessage(device, pipe, buffer, bufferLength, request);
  	}
-+        LOGF("!!! %d\n", (u32)&tempPipe);
- 
- 	device->Error = Processing;
- 	device->LastTransfer = 0;
-diff --git a/source/hcd/dwc/roothub.c b/source/hcd/dwc/roothub.c
-index 7ca2e41..d130565 100644
---- a/source/hcd/dwc/roothub.c
-+++ b/source/hcd/dwc/roothub.c
-@@ -119,8 +119,8 @@ struct HubDescriptor HubDescriptor = {
- u32 RootHubDeviceNumber = 0;
- 
- Result HcdProcessRootHubMessage(struct UsbDevice *device, 
--		struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
--		struct UsbDeviceRequest *request) {
-+		struct UsbPipeAddress pipe, volatile void* buffer, u32 bufferLength,
-+		volatile struct UsbDeviceRequest *request) {
- 	u32 replyLength;
- 	Result result;
- 
+@@ -516,7 +519,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 	tempPipe.Type = Control;
+ 	tempPipe.Direction = Out;
+ 	
+-	if ((result = HcdChannelSendWait(device, &tempPipe, 0, request, 8, request, Setup)) != OK) {		
++	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, request, 8, request, Setup)) != OK) {		
+ 		LOGF("HCD: Could not send SETUP to %s.\n", UsbGetDescription(device));
+ 		return OK;
+ 	}
+@@ -533,7 +536,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 		tempPipe.Type = Control;
+ 		tempPipe.Direction = pipe.Direction;
+ 		
+-		if ((result = HcdChannelSendWait(device, &tempPipe, 0, databuffer, bufferLength, request, Data1)) != OK) {		
++		if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, databuffer, bufferLength, request, Data1)) != OK) {		
+ 			LOGF("HCD: Could not send DATA to %s.\n", UsbGetDescription(device));
+ 			return OK;
+ 		}
+@@ -566,7 +569,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 	tempPipe.Type = Control;
+ 	tempPipe.Direction = ((bufferLength == 0) || pipe.Direction == Out) ? In : Out;
+ 	
+-	if ((result = HcdChannelSendWait(device, &tempPipe, 0, databuffer, 0, request, Data1)) != OK) {		
++	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, databuffer, 0, request, Data1)) != OK) {		
+ 		LOGF("HCD: Could not send STATUS to %s.\n", UsbGetDescription(device));
+ 		return OK;
+ 	}
 diff --git a/source/platform/platform.c b/source/platform/platform.c
 index 4d46c66..8adc970 100644
 --- a/source/platform/platform.c
