@@ -11,4 +11,8 @@ SECTIONS
     _bss_begin = .;
     .bss : { *(.bss) }
     _bss_end = .;
+    . = ALIGN(0x100000);
+    _bss_dmem_begin = .;
+    .bss.dmemqwq : { *(.bss.dmem) }
+    _bss_dmem_end = .;
 }

@@ -57,6 +57,9 @@ void _enter_user_mode();
 
 void syscall(uint32_t code, uint32_t arg);
 
+extern unsigned char _bss_dmem_begin;
+extern unsigned char _bss_dmem_end;
+
 uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
 uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
 
@@ -291,10 +294,16 @@ void kernel_main()
     // Prepare TLB
     // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(mm_sys, i << 20, i << 20, (i < 2 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i < 1 ? (8 | 4) : 0));
     }
     // TODO: Make MMU work with USB again
-    //_enable_mmu((uint32_t)mm_sys);
+    // Disable buffering/caching on .bss.dmem(qwq) sections
+    uint32_t dmem_start = ((uint32_t)&_bss_dmem_begin) >> 20;
+    uint32_t dmem_end = ((uint32_t)&_bss_dmem_end - 1) >> 20;
+    for (uint32_t i = dmem_start; i < dmem_end; i++) {
+        mmu_table_section(mm_sys, i << 20, i << 20, 0);
+    }
+    _enable_mmu((uint32_t)mm_sys);
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
@@ -326,6 +335,7 @@ void kernel_main()
     print_init(buf, f.pwidth, f.pheight, f.pitch);
     print("Hello world!\nHello MIKAN!\n");
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
+    printf("%d %d\n", dmem_start, dmem_end);
     DSB();
 
     uint32_t pix_ord = get_pixel_order();
