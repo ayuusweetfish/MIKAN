@@ -57,10 +57,8 @@ void _enter_user_mode();
 
 void syscall(uint32_t code, uint32_t arg);
 
-uint32_t mmu_table[4096] __attribute__((aligned(1 << 14)));
-
-uint32_t mm_sys[4096];
-uint32_t mm_user[4096];
+uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
+uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
 
 void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t flags)
 {
@@ -295,8 +293,7 @@ void kernel_main()
     for (uint32_t i = 0; i < 4096; i++) {
         mmu_table_section(mm_sys, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
     }
-    memcpy(mmu_table, mm_sys, sizeof mmu_table);
-    _enable_mmu((uint32_t)mmu_table);
+    _enable_mmu((uint32_t)mm_sys);
 
 /*
     // Set up framebuffer
@@ -357,16 +354,15 @@ void kernel_main()
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    //memcpy(mm_user, mm_sys, sizeof mmu_table);
     for (uint32_t i = 0; i < 3229; i++) {
         mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
     }
     mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
     mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
-    memcpy(mmu_table, mm_user, sizeof mmu_table);
+    _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
     _set_domain_access((1 << 2) | 3);
-    _flush_mmu_table();
+    //_flush_mmu_table();
 
     // Uncommenting will result in a domain fault
     //_set_domain_access(3);
