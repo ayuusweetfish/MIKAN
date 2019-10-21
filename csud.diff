@@ -1,3 +1,36 @@
+diff --git a/configuration/makefile.in b/configuration/makefile.in
+index d92e1b4..36dd75c 100644
+--- a/configuration/makefile.in
++++ b/configuration/makefile.in
+@@ -35,3 +35,4 @@ LIB_HID ?= 1
+ LIB_KBD ?= 1
+ LIB_HUB ?= 1
+ LIB_MOUSE ?= 1
++LIB_GAMEPAD ?= 1
+diff --git a/source/configuration.c b/source/configuration.c
+index baca685..db7f72f 100644
+--- a/source/configuration.c
++++ b/source/configuration.c
+@@ -39,6 +39,9 @@ void KbdLoad();
+ #ifdef LIB_MOUSE
+ void MouseLoad();
+ #endif
++#ifdef LIB_GAMEPAD
++void GamepadLoad();
++#endif
+ 
+ void ConfigurationLoad() {
+ 	// Call each libraries load method here. Watch out for the order, load more
+@@ -66,4 +69,7 @@ void ConfigurationLoad() {
+ #ifdef LIB_MOUSE
+ 	MouseLoad();
+ #endif
+-}
+\ No newline at end of file
++#ifdef LIB_GAMEPAD
++	GamepadLoad();
++#endif
++}
 diff --git a/source/device/hid/hid.c b/source/device/hid/hid.c
 index 1370af3..5b11d01 100644
 --- a/source/device/hid/hid.c
@@ -21,6 +54,23 @@ index 1370af3..5b11d01 100644
 -}
 \ No newline at end of file
 +}
+diff --git a/source/device/hid/makefile.in b/source/device/hid/makefile.in
+index 82c8ae2..17424ab 100644
+--- a/source/device/hid/makefile.in
++++ b/source/device/hid/makefile.in
+@@ -24,3 +24,12 @@ $(BUILD)mouse.c.o: $(DIR)mouse.c $(INCDIR)device/hid/hid.h $(INCDIR)device/hid/m
+ 	@$(GCC) $< -o $@
+ 	@echo "==== Generating object: $@"
+ endif
++
++ifeq ("$(LIB_GAMEPAD)", "1")
++CFLAGS += -DLIB_GAMEPAD
++OBJECTS += $(BUILD)gamepad.c.o
++
++$(BUILD)gamepad.c.o: $(DIR)gamepad.c $(INCDIR)device/hid/hid.h $(INCDIR)device/hid/gamepad.h $(INCDIR)device/hid/report.h $(INCDIR)platform/platform.h $(INCDIR)usbd/device.h $(INCDIR)types.h $(INCDIR)usbd/usbd.h
++	@$(GCC) $< -o $@
++	@echo "==== Generating object: $@"
++endif
 diff --git a/source/hcd/dwc/designware20.c b/source/hcd/dwc/designware20.c
 index a8e4c8b..62dd4e4 100644
 --- a/source/hcd/dwc/designware20.c
