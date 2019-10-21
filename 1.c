@@ -103,7 +103,7 @@ struct fb {
 };
 
 struct fb f;
-static uint8_t gbuf[256 * 256 * 8];
+static uint8_t gbuf[512 * 512 * 8];
 
 void wait(uint32_t ticks)
 {
@@ -291,16 +291,17 @@ void kernel_main()
     // Prepare TLB
     // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(mm_sys, i << 20, i << 20, (i < 4 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i < 2 ? (8 | 4) : 0));
     }
-    _enable_mmu((uint32_t)mm_sys);
+    // TODO: Make MMU work with USB again
+    //_enable_mmu((uint32_t)mm_sys);
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
-    f_volatile.pwidth = 256;
-    f_volatile.pheight = 256;
-    f_volatile.vwidth = 256;
-    f_volatile.vheight = 256 * 2;
+    f_volatile.pwidth = 512;
+    f_volatile.pheight = 512;
+    f_volatile.vwidth = 512;
+    f_volatile.vheight = 512 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -322,7 +323,7 @@ void kernel_main()
     _flush_mmu_table();
 
     DMB();
-    print_init(gbuf, f.vwidth, f.vheight, f.pitch);
+    print_init(buf, f.pwidth, f.pheight, f.pitch);
     print("Hello world!\nHello MIKAN!\n");
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     DSB();
@@ -330,6 +331,17 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
+    DMB();
+    csudUsbInitialise();
+    DSB();
+
+    while (1) {
+        DMB();
+        csudUsbCheckForChange();
+        DSB();
+    }
+
+/*
     // Start system timer
     DSB();
     *SYSTMR_CS = 8;
@@ -381,4 +393,5 @@ void kernel_main()
         static uint32_t count = 0;
         if (++count >= 5) *GPSET1 = (1 << 15);
     }
+*/
 }
