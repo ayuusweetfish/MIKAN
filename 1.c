@@ -59,9 +59,12 @@ void syscall(uint32_t code, uint32_t arg);
 
 uint32_t mmu_table[4096] __attribute__((aligned(1 << 14)));
 
-void mmu_table_section(uint32_t vaddr, uint32_t paddr, uint32_t flags)
+uint32_t mm_sys[4096];
+uint32_t mm_user[4096];
+
+void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t flags)
 {
-    uint32_t *table_addr = (uint32_t *)((uint8_t *)mmu_table + (vaddr >> 18));
+    uint32_t *table_addr = (uint32_t *)((uint8_t *)table + (vaddr >> 18));
     uint32_t table_val = paddr | flags | 2;
     // 2 = Section; see ARM ARM B4-27
     *table_addr = table_val;
@@ -227,7 +230,12 @@ void __attribute__((interrupt("ABORT"))) _int_pfabort()
 void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
     _set_domain_access((3 << 2) | 3);
-    while (1) { murmur(6); wait(1000000); }
+    while (1) {
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        *GPCLR1 = (1 << 15);
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        *GPSET1 = (1 << 15);
+    }
 }
 
 void draw()
@@ -285,8 +293,9 @@ void kernel_main()
     // Prepare TLB
     // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
     }
+    memcpy(mmu_table, mm_sys, sizeof mmu_table);
     _enable_mmu((uint32_t)mmu_table);
 
 /*
@@ -348,8 +357,13 @@ void kernel_main()
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    mmu_table_section(0x20000000, 0x20000000, (1 << 5) | (1 << 10));
-    mmu_table_section(0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    //memcpy(mm_user, mm_sys, sizeof mmu_table);
+    for (uint32_t i = 0; i < 3229; i++) {
+        mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
+    }
+    mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
+    mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    memcpy(mmu_table, mm_user, sizeof mmu_table);
     // Client for domain 1, Manager for domain 0
     _set_domain_access((1 << 2) | 3);
     _flush_mmu_table();
