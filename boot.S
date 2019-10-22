@@ -86,7 +86,7 @@ _enable_mmu:
     # Tell the coprocessor about the table address (ARM ARM p. B4-41/B5-18)
     mcr     p15, 0, r0, c2, c0, 0
     mcr     p15, 0, r0, c2, c0, 1
-    # Set domain controll access to Manager (ARM ARM p. B4-10/B5-18)
+    # Set domain control access to Manager (ARM ARM p. B4-10/B5-18)
     # Also http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0360f/CHDGIJFB.html
     mov     r1, #0xf
     mcr     p15, 0, r1, c3, c0, 0

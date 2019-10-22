@@ -57,11 +57,12 @@ void _enter_user_mode();
 
 void syscall(uint32_t code, uint32_t arg);
 
-uint32_t mmu_table[4096] __attribute__((aligned(1 << 14)));
+uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
+uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
 
-void mmu_table_section(uint32_t vaddr, uint32_t paddr, uint32_t flags)
+void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t flags)
 {
-    uint32_t *table_addr = (uint32_t *)((uint8_t *)mmu_table + (vaddr >> 18));
+    uint32_t *table_addr = (uint32_t *)((uint8_t *)table + (vaddr >> 18));
     uint32_t table_val = paddr | flags | 2;
     // 2 = Section; see ARM ARM B4-27
     *table_addr = table_val;
@@ -102,7 +103,7 @@ struct fb {
 };
 
 struct fb f;
-static uint8_t gbuf[128 * 128 * 8];
+static uint8_t gbuf[256 * 256 * 8];
 
 void wait(uint32_t ticks)
 {
@@ -227,7 +228,12 @@ void __attribute__((interrupt("ABORT"))) _int_pfabort()
 void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
     _set_domain_access((3 << 2) | 3);
-    while (1) { murmur(6); wait(1000000); }
+    while (1) {
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        *GPCLR1 = (1 << 15);
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        *GPSET1 = (1 << 15);
+    }
 }
 
 void draw()
@@ -285,17 +291,16 @@ void kernel_main()
     // Prepare TLB
     // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i < 4 ? (8 | 4) : 0));
     }
-    _enable_mmu((uint32_t)mmu_table);
+    _enable_mmu((uint32_t)mm_sys);
 
-/*
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
-    f_volatile.pwidth = 128;
-    f_volatile.pheight = 128;
-    f_volatile.vwidth = 128;
-    f_volatile.vheight = 128 * 2;
+    f_volatile.pwidth = 256;
+    f_volatile.pheight = 256;
+    f_volatile.vwidth = 256;
+    f_volatile.vheight = 256 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -309,6 +314,12 @@ void kernel_main()
         buf[y * f.pitch + x * 3 + 1] =
         buf[y * f.pitch + x * 3 + 0] = 255;
     }
+
+    uint32_t buf_p = (uint32_t)buf;
+    buf_p = (buf_p >> 20) << 20;
+    for (uint32_t i = 0; i < 4; i++)
+        mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 4);
+    _flush_mmu_table();
 
     DMB();
     print_init(gbuf, f.vwidth, f.vheight, f.pitch);
@@ -327,7 +338,7 @@ void kernel_main()
 
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
-    for (uint32_t i = 0; i < 500; i++) {
+    for (uint32_t i = 0; i < 2000; i++) {
         new_frame = false;
         uint32_t t = get_time();
         draw();
@@ -337,10 +348,9 @@ void kernel_main()
         set_virtual_offs(0, virt_y);
         buffer_id ^= 1;
         print_setbuf(scr);
-        printf("|%d", _get_mode());
+        printf("|%d", (uint32_t)scr);
         last_time = t;
     }
-*/
 
     *GPCLR1 = (1 << 15);
     wait(1000000);
@@ -348,11 +358,14 @@ void kernel_main()
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    mmu_table_section(0x20000000, 0x20000000, (1 << 5) | (1 << 10));
-    mmu_table_section(0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    for (uint32_t i = 0; i < 3229; i++) {
+        mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
+    }
+    mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
+    mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
     _set_domain_access((1 << 2) | 3);
-    _flush_mmu_table();
 
     // Uncommenting will result in a domain fault
     //_set_domain_access(3);
