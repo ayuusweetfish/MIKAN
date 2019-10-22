@@ -56,7 +56,13 @@ typedef struct {
 
 uint8_t load_elf(const char *buf);
 
+void load_program(const elf_ehdr *ehdr, const elf_phdr *program);
+
+#ifdef ELF_TEST
 #include <stdio.h>
 #define ELF_LOG printf
+#else
+#define ELF_LOG
+#endif
 
 #endif

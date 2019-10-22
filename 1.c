@@ -1,8 +1,11 @@
 #include <stdint.h>
 #include <string.h>
 #include "print.h"
+#include "user/elf/elf.h"
 #include "usbd/usbd.h"
 #include "device/hid/keyboard.h"
+
+#include "user_c_a_out.h"
 
 #define GPIO_BASE   0x20200000
 
@@ -54,6 +57,7 @@ void _flush_mmu_table();
 void _standby();
 uint32_t _get_mode();
 void _enter_user_mode();
+void _enter_user_code(uint32_t addr);
 
 void syscall(uint32_t code, uint32_t arg);
 
@@ -274,6 +278,15 @@ void draw()
     print_putchar('0' + frm * 1000000 / t % 10);
 }
 
+void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
+{
+    const char *buf = (const char *)ehdr;
+    uint32_t empty_len =
+        (program->filesz < program->memsz ? program->memsz - program->filesz : 0);
+    memcpy((void *)program->vaddr, buf + program->offs, program->filesz);
+    memset((void *)program->vaddr + program->filesz, 0, empty_len);
+}
+
 void kernel_main()
 {
     DSB();
@@ -295,6 +308,7 @@ void kernel_main()
     }
     _enable_mmu((uint32_t)mm_sys);
 
+/*
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
     f_volatile.pwidth = 256;
@@ -354,31 +368,33 @@ void kernel_main()
 
     *GPCLR1 = (1 << 15);
     wait(1000000);
+*/
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    for (uint32_t i = 0; i < 3229; i++) {
+    for (uint32_t i = 0; i < 4096; i++) {
         mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
     }
     mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
     mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    for (uint32_t i = 0x80000000; i < 0xa0000000; i += 0x100000) {
+        mmu_table_section(mm_user, i, i - 0x80000000 + 0x1000000, 0);
+    }
     _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
     _set_domain_access((1 << 2) | 3);
 
-    // Uncommenting will result in a domain fault
-    //_set_domain_access(3);
-    _enter_user_mode();
+    load_elf(user_c_a_out);
+    const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
+
+    _enter_user_code(ehdr->entry);
+
+    // Should not reach here
     while (1) {
-        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        //*GPCLR1 = (1 << 15);
-        syscall(42, 1 << 15);
-        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        //*GPSET1 = (1 << 15);
-        syscall(43, 1 << 15);
-        // Trigger a data abort after 5 blinks
-        static uint32_t count = 0;
-        if (++count >= 5) *GPSET1 = (1 << 15);
+        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
+        *GPCLR1 = (1 << 15);
+        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
+        *GPSET1 = (1 << 15);
     }
 }

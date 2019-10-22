@@ -3,6 +3,8 @@
 
 #include "elf.h"
 
+void load_program(const elf_ehdr *ehdr, const elf_phdr *program) { }
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
