@@ -9,10 +9,10 @@ index d92e1b4..36dd75c 100644
 +LIB_GAMEPAD ?= 1
 diff --git a/include/device/hid/gamepad.h b/include/device/hid/gamepad.h
 new file mode 100644
-index 0000000..0325807
+index 0000000..cc88b2a
 --- /dev/null
 +++ b/include/device/hid/gamepad.h
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,29 @@
 +#ifndef GAMEPAD_H_
 +#define GAMEPAD_H_
 +
@@ -27,13 +27,15 @@ index 0000000..0325807
 +struct GamepadDevice {
 +    struct UsbDriverDataHeader Header;
 +    u32 Index;
++    struct HidParserReport *InputReport;
 +};
 +
 +#define DeviceDriverGamepad 0x4a4b4c3d
 +
-+u32 GamepadIndex(u32 address);
-+u32 GamepadGetAddress(u32 index);
 +u32 GamepadCount();
++u32 GamepadGetAddress(u32 index);
++u32 GamepadIndex(u32 address);
++Result GamepadPoll(u32 gamepadAddress);
 +
 +#ifdef __cplusplus
 +}
@@ -66,10 +68,10 @@ index baca685..db7f72f 100644
 +}
 diff --git a/source/device/hid/gamepad.c b/source/device/hid/gamepad.c
 new file mode 100644
-index 0000000..0a4c47c
+index 0000000..975628d
 --- /dev/null
 +++ b/source/device/hid/gamepad.c
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,184 @@
 +#include <device/hid/hid.h>
 +#include <device/hid/gamepad.h>
 +#include <device/hid/report.h>
@@ -207,9 +209,15 @@ index 0000000..0a4c47c
 +    }
 +
 +    gamepads[gamepadNumber] = device;
++    data->InputReport = NULL;
 +
 +    for (u32 i = 0; i < parse->ReportCount; i++) {
-+        LOG_DEBUGF("GP: type %x report %d. %d fields.\n", parse->Report[i]->Type, i, parse->Report[i]->FieldCount);
++        struct HidParserReport *r = parse->Report[i];
++        //LOG_DEBUGF("GP: type %x report %d. %d fields.\n", r->Type, i, r->FieldCount);
++        if (r->Type == Input && data->InputReport == NULL) {
++            LOG_DEBUGF("GP: Report %d identified as input.\n", i);
++            data->InputReport = r;
++        }
 +    }
 +
 +    LOG_DEBUGF("GP: New gamepad assigned %d (%d)!\n", device->Number, gamepadNumber);
@@ -219,6 +227,34 @@ index 0000000..0a4c47c
 +u32 GamepadCount()
 +{
 +    return gamepadCount;
++}
++
++Result GamepadPoll(u32 gamepadAddress)
++{
++    u32 gamepadNumber;
++    Result result;
++    struct GamepadDevice *data;
++    
++    gamepadNumber = GamepadIndex(gamepadAddress);    
++    if (gamepadNumber == 0xffffffff) return ErrorDisconnected;
++    data = (struct GamepadDevice*)((struct HidDevice*)gamepads[gamepadNumber]->DriverData)->DriverData;
++    if ((result = HidReadDevice(gamepads[gamepadNumber], data->InputReport->Index)) != OK) {
++        if (result != ErrorDisconnected)
++            LOGF("GP: Could not get report from %s.\n", UsbGetDescription(gamepads[gamepadNumber]));
++        return result;
++    }
++
++    for (u32 j = 0; j < data->InputReport->FieldCount; j++) {
++        struct HidParserField *f = &data->InputReport->Fields[j];
++        /*LOG_DEBUGF("GP: F %d Attr = %x Usage = %x%c [%d]",
++            j,
++            *(u32 *)&f->Attributes, *(u32 *)&f->Usage,
++            j % 2 == 0 ? ' ' : '\n', f->Value.U32);*/
++        LOG_DEBUGF("%d%c", f->Value.U32, j % 16 == 15 ? '\n' : ' ');
++    }
++    LOG_DEBUG("\n");
++
++    return OK;
 +}
 diff --git a/source/device/hid/hid.c b/source/device/hid/hid.c
 index 1370af3..5b11d01 100644
