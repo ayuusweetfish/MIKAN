@@ -59,7 +59,14 @@ uint32_t _get_mode();
 void _enter_user_mode();
 void _enter_user_code(uint32_t addr);
 
-void syscall(uint32_t code, uint32_t arg);
+inline void syscall(uint32_t code, uint32_t arg)
+{
+    __asm__ __volatile__ (
+        "mov r0, %0\n\t"
+        "mov r1, %1\n\t"
+        "svc #0\n\t"
+        : : "r"(code), "r"(arg) : "r0", "r1", "memory");
+}
 
 uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
 uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
@@ -203,35 +210,54 @@ void __attribute__((interrupt("IRQ"))) _int_irq()
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    print("Undefined Instruction\n");
+    DMB();
     while (1) { murmur(2); wait(1000000); }
 }
 
 void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    print("Undefined Handler\n");
+    DMB();
     while (1) { murmur(3); wait(1000000); }
 }
 
 void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1)
 {
-    _set_domain_access((3 << 2) | 3);
+    //uint32_t lr;
+    //__asm__ __volatile__ ("mov %0, lr" : "=r"(lr) : :);
+    //_set_domain_access((3 << 2) | 3);
+    DMB(); DSB();
+    printf("SVC %d\n", r0);
+    //printf("LR = %x\n", lr);
+    DMB(); DSB();
     if (r0 == 42) {
         *GPCLR1 = r1;
     } else if (r0 == 43) {
         *GPSET1 = r1;
     }
-    _set_domain_access((1 << 2) | 3);
+    DMB(); DSB();
+    //_set_domain_access((1 << 2) | 3);
 }
 
 void __attribute__((interrupt("ABORT"))) _int_pfabort()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    print("Prefetch Abort\n");
+    DMB();
     while (1) { murmur(5); wait(1000000); }
 }
 
 void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    print("Data Abort\n");
+    DMB();
     while (1) {
         for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
         *GPCLR1 = (1 << 15);
@@ -308,7 +334,6 @@ void kernel_main()
     }
     _enable_mmu((uint32_t)mm_sys);
 
-/*
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
     f_volatile.pwidth = 256;
@@ -336,7 +361,7 @@ void kernel_main()
     _flush_mmu_table();
 
     DMB();
-    print_init(gbuf, f.vwidth, f.vheight, f.pitch);
+    print_init(buf, f.pwidth, f.pheight, f.pitch);
     print("Hello world!\nHello MIKAN!\n");
     print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     DSB();
@@ -344,11 +369,12 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
+/*
     // Start system timer
-    DSB();
+    DMB();
     *SYSTMR_CS = 8;
     *SYSTMR_C3 = *SYSTMR_CLO + 16666;
-    DMB();
+    DSB();
 
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
@@ -365,21 +391,26 @@ void kernel_main()
         printf("|%d", (uint32_t)scr);
         last_time = t;
     }
-
     *GPCLR1 = (1 << 15);
     wait(1000000);
 */
 
+    printf("%x\n", (uint32_t)buf);
+    print_putchar('Q');
+    print_putchar('u');
+    print_putchar('Q');
+    print_putchar('\n');
+    print("QuQ\n");
+
+
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
-    }
+    memcpy(mm_user, mm_sys, sizeof mm_user);
     mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
     mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
     for (uint32_t i = 0x80000000; i < 0xa0000000; i += 0x100000) {
-        mmu_table_section(mm_user, i, i - 0x80000000 + 0x1000000, 0);
+        mmu_table_section(mm_user, i, i - 0x80000000 + 0x1000000, 8 | 4);
     }
     _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
@@ -387,6 +418,28 @@ void kernel_main()
 
     load_elf(user_c_a_out);
     const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
+    printf("%x\n", (uint32_t)ehdr->entry);
+    printf("%x\n", *(uint32_t *)ehdr->entry);
+    printf("%d\n", _get_mode());
+
+    _enter_user_mode();
+/*
+    printf("%d\n", _get_mode());
+    while (1) {
+        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
+        //*GPCLR1 = (1 << 15);
+        syscall(42, 1 << 15);
+        print("QAQ\n");
+        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
+        //*GPSET1 = (1 << 15);
+        syscall(43, 1 << 15);
+        print("QuQ\n");
+        // Trigger a data abort after 5 blinks
+        static uint32_t count = 0;
+        if (++count >= 5) *GPSET1 = (1 << 15);
+    }
+    while (1) { }
+*/
 
     _enter_user_code(ehdr->entry);
 
