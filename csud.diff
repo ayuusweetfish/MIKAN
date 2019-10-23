@@ -68,10 +68,10 @@ index baca685..db7f72f 100644
 +}
 diff --git a/source/device/hid/gamepad.c b/source/device/hid/gamepad.c
 new file mode 100644
-index 0000000..975628d
+index 0000000..71950f8
 --- /dev/null
 +++ b/source/device/hid/gamepad.c
-@@ -0,0 +1,184 @@
+@@ -0,0 +1,193 @@
 +#include <device/hid/hid.h>
 +#include <device/hid/gamepad.h>
 +#include <device/hid/report.h>
@@ -151,6 +151,9 @@ index 0000000..975628d
 +Result GamepadAttach(struct UsbDevice *device, u32 interface)
 +{
 +    LOG("GP: QwQ!!!!!\n");
++    Result r = HidReadDevice(device, 0);
++    LOG_DEBUGF("GP: HidReadDevice returns %d\n", (int)r);
++
 +    u32 gamepadNumber;
 +    struct HidDevice *hidData;
 +    struct GamepadDevice *data;
@@ -238,29 +241,59 @@ index 0000000..975628d
 +    gamepadNumber = GamepadIndex(gamepadAddress);    
 +    if (gamepadNumber == 0xffffffff) return ErrorDisconnected;
 +    data = (struct GamepadDevice*)((struct HidDevice*)gamepads[gamepadNumber]->DriverData)->DriverData;
++    for (u32 j = 0; j < data->InputReport->FieldCount; j++) {
++        struct HidParserField *f = &data->InputReport->Fields[j];
++        f->Value.U32 = 0;
++    }
++    
 +    if ((result = HidReadDevice(gamepads[gamepadNumber], data->InputReport->Index)) != OK) {
 +        if (result != ErrorDisconnected)
 +            LOGF("GP: Could not get report from %s.\n", UsbGetDescription(gamepads[gamepadNumber]));
 +        return result;
 +    }
 +
++    LOG_DEBUG("\b");
 +    for (u32 j = 0; j < data->InputReport->FieldCount; j++) {
 +        struct HidParserField *f = &data->InputReport->Fields[j];
 +        /*LOG_DEBUGF("GP: F %d Attr = %x Usage = %x%c [%d]",
 +            j,
 +            *(u32 *)&f->Attributes, *(u32 *)&f->Usage,
 +            j % 2 == 0 ? ' ' : '\n', f->Value.U32);*/
-+        LOG_DEBUGF("%d%c", f->Value.U32, j % 16 == 15 ? '\n' : ' ');
++        LOG_DEBUGF("[%d]%x%c", f->Count, HidGetFieldValue(f, 0), j % 16 == 15 ? '\n' : ' ');
 +    }
 +    LOG_DEBUG("\n");
 +
 +    return OK;
 +}
 diff --git a/source/device/hid/hid.c b/source/device/hid/hid.c
-index 1370af3..5b11d01 100644
+index 1370af3..4c40169 100644
 --- a/source/device/hid/hid.c
 +++ b/source/device/hid/hid.c
-@@ -915,6 +915,11 @@ Result HidAttach(struct UsbDevice *device, u32 interfaceNumber) {
+@@ -162,6 +162,7 @@ Result HidReadDevice(struct UsbDevice *device, u8 reportNumber) {
+ 	data = (struct HidDevice*)device->DriverData;
+ 	parse = data->ParserResult;
+ 	report = parse->Report[reportNumber];
++        LOGF("HID: Report length %d   \n", report->ReportLength);
+ 	size = ((report->ReportLength + 7) / 8);
+ 	if ((report->ReportBuffer == NULL) && (report->ReportBuffer = (u8*)MemoryAllocate(size)) == NULL) {
+ 		return ErrorMemory;
+@@ -849,6 +850,7 @@ Result HidAttach(struct UsbDevice *device, u32 interfaceNumber) {
+ 			return result;
+ 		}
+ 	}
++        LOG_DEBUGF("HID: Class=%d SubClass=%d\n", device->Interfaces[interfaceNumber].Class, device->Interfaces[interfaceNumber].SubClass);
+ 
+ 	header = (struct UsbDescriptorHeader*)device->FullConfiguration;
+ 	descriptor = NULL;
+@@ -868,6 +870,7 @@ Result HidAttach(struct UsbDevice *device, u32 interfaceNumber) {
+ 		}
+ 		
+ 		LOG_DEBUGF("HID: Descriptor %d length %d, interface %d.\n", header->DescriptorType, header->DescriptorLength, currentInterface);
++                MicroDelay(1000000);
+ 
+ 		if (descriptor != NULL) break;
+ 		header = (void*)((u8*)header + header->DescriptorLength);
+@@ -915,6 +918,11 @@ Result HidAttach(struct UsbDevice *device, u32 interfaceNumber) {
  	reportDescriptor = NULL;
  
  	data->ParserResult->Interface = interfaceNumber;
@@ -272,13 +305,35 @@ index 1370af3..5b11d01 100644
  	if (data->ParserResult->Application.Page == GenericDesktopControl &&
  		(u16)data->ParserResult->Application.Desktop < HidUsageAttachCount &&
  		HidUsageAttach[(u16)data->ParserResult->Application.Desktop] != NULL) {
-@@ -930,4 +935,4 @@ deallocate:
+@@ -930,4 +938,4 @@ deallocate:
  
  s32 HidGetFieldValue(struct HidParserField *field, u32 index) {
  	return BitGetSigned(field->Value.Pointer, index * field->Size, field->Size);
 -}
 \ No newline at end of file
 +}
+diff --git a/source/device/hid/keyboard.c b/source/device/hid/keyboard.c
+index 11da33b..a32214b 100644
+--- a/source/device/hid/keyboard.c
++++ b/source/device/hid/keyboard.c
+@@ -286,6 +286,17 @@ Result csudKeyboardPoll(u32 keyboardAddress) {
+ 		return result;
+ 	}
+ 
++    LOG_DEBUG("\b");
++    for (u32 j = 0; j < data->KeyReport->FieldCount; j++) {
++        struct HidParserField *f = &data->KeyReport->Fields[j];
++        /*LOG_DEBUGF("GP: F %d Attr = %x Usage = %x%c [%d]",
++            j,
++            *(u32 *)&f->Attributes, *(u32 *)&f->Usage,
++            j % 2 == 0 ? ' ' : '\n', f->Value.U32);*/
++        LOG_DEBUGF("[%d]%x%c", f->Count, HidGetFieldValue(f, 0), j % 16 == 15 ? '\n' : ' ');
++    }
++    LOG_DEBUG("\n");
++
+ 	if (data->KeyFields[0] != NULL)
+ 		data->Modifiers.LeftControl = data->KeyFields[0]->Value.Bool;
+ 	if (data->KeyFields[1] != NULL)
 diff --git a/source/device/hid/makefile.in b/source/device/hid/makefile.in
 index 82c8ae2..17424ab 100644
 --- a/source/device/hid/makefile.in
@@ -297,48 +352,200 @@ index 82c8ae2..17424ab 100644
 +	@echo "==== Generating object: $@"
 +endif
 diff --git a/source/hcd/dwc/designware20.c b/source/hcd/dwc/designware20.c
-index a8e4c8b..62dd4e4 100644
+index a8e4c8b..fa9a646 100644
 --- a/source/hcd/dwc/designware20.c
 +++ b/source/hcd/dwc/designware20.c
-@@ -500,7 +500,10 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+@@ -264,6 +264,8 @@ Result HcdPrepareChannel(struct UsbDevice *device, u8 channel,
+ 		Host->Channel[channel].TransferSize.PacketCount = 1;
+ 	Host->Channel[channel].TransferSize.PacketId = type;
+ 	WriteThroughReg(&Host->Channel[channel].TransferSize);
++        LOG_DEBUGF("HCD: %d %d %x\n", (u32)channel, (u32)type, *(u32 *)pipe);
++        //MicroDelay(1000000);
+ 	
+ 	return OK;
+ }
+@@ -276,6 +278,7 @@ void HcdTransmitChannel(u8 channel, void* buffer) {
+ 	if (((u32)buffer & 3) != 0)
+ 		LOG_DEBUGF("HCD: Transfer buffer %#x is not DWORD aligned. Ignored, but dangerous.\n", buffer);
+ 	Host->Channel[channel].DmaAddress = buffer;
++        LOG_DEBUGF("HCD: !! %x\n", (u32)buffer);
+ 	WriteThroughReg(&Host->Channel[channel].DmaAddress);
+ 
+ 	ReadBackReg(&Host->Channel[channel].Characteristic);
+@@ -351,6 +354,7 @@ Result HcdChannelSendWaitOne(struct UsbDevice *device,
+ 		WriteThroughReg(&Host->Channel[channel].Interrupt);
+ 		ReadBackReg(&Host->Channel[channel].TransferSize);
+ 		ReadBackReg(&Host->Channel[channel].SplitControl);
++                LOG_DEBUGF("HCD: >>> %d\n", Host->Channel[channel].TransferSize.PacketCount);
+ 						
+ 		HcdTransmitChannel(channel, (u8*)buffer + bufferOffset);
+ 
+@@ -366,6 +370,7 @@ Result HcdChannelSendWaitOne(struct UsbDevice *device,
+ 			else break;
+ 		} while (true);
+ 		ReadBackReg(&Host->Channel[channel].TransferSize);
++                LOG_DEBUGF("HCD: <<< %d\n", Host->Channel[channel].TransferSize.PacketCount);
+ 		
+ 		if (pipe->Speed != High) {
+ 			if ((Host->Channel[channel].Interrupt.Acknowledgement) && (Host->Channel[channel].SplitControl.SplitEnable)) {
+@@ -456,6 +461,10 @@ Result HcdChannelSendWait(struct UsbDevice *device,
+ 	struct UsbDeviceRequest *request, enum PacketId packetId) {
+ 	Result result;
+ 	u32 packets, transfer, tries;
++
++        if ((int)packetId == 2 && request->Type == 161 && request->Request == 1 && request->Value == 257) {
++            LOG("!!>\n");
++        }
+ 	
+ 	tries = 0;
+ retry:
+@@ -469,6 +478,17 @@ retry:
+ 		LOGF("HCD: Could not prepare data channel to %s.\n", UsbGetDescription(device));
+ 		return result;
+ 	}
++
++        LOG("\n\n=====\n");
++        if ((request->Type & 128) && request != buffer) {
++            for (int i = 0; i < bufferLength && i < 2; i++) ((u8 *)buffer)[i] = 0;
++        }
++        LOGF("%x %x %d %x %d %x %d | %d %d %d %d %d\n[",
++            (u32)device, *(u32 *)pipe, channel, (u32)buffer, bufferLength, (u32)request, (u32)packetId,
++            request->Type, request->Request, request->Value, request->Index, request->Length);
++        for (int i = 0; i < bufferLength; i++) LOGF(" %x", ((u8 *)buffer)[i]);
++        LOG("]\n");
++        //MicroDelay(4000000);
+ 		
+ 	transfer = 0;
+ 	do {
+@@ -480,18 +500,28 @@ retry:
+ 		
+ 		ReadBackReg(&Host->Channel[channel].TransferSize);		
+ 		transfer = bufferLength - Host->Channel[channel].TransferSize.TransferSize;
++                LOGF("HCD: [%d %d %d %d]\n", bufferLength, Host->Channel[channel].TransferSize.TransferSize, packets, Host->Channel[channel].TransferSize.PacketCount);
+ 		if (packets == Host->Channel[channel].TransferSize.PacketCount) break;
+ 	} while (Host->Channel[channel].TransferSize.PacketCount > 0);
+ 
+ 	if (packets == Host->Channel[channel].TransferSize.PacketCount) {
+-		device->Error = ConnectionError;
++        //LOG("Recursing!\n");
++        //HcdChannelSendWait(device, pipe, channel, buffer, 1, request, packetId);
++		/*device->Error = ConnectionError;
+ 		LOGF("HCD: Transfer to %s got stuck.\n", UsbGetDescription(device));
+-		return ErrorDevice;
++		return ErrorDevice;*/
+ 	}
++        LOG("[");
++        for (int i = 0; i < bufferLength; i++) LOGF(" %x", ((u8 *)buffer)[i]);
++        LOG("]\n");
++        LOG("=====\n");
+ 
+ 	if (tries > 1) {
+ 		LOGF("HCD: Transfer to %s succeeded on attempt %d/3.\n", UsbGetDescription(device), tries);
+ 	}
++        //if (bufferLength >= 30) MicroDelay(5000000);
++        //if ((int)packetId == 2 && request->Type == 161 && request->Request == 1 && request->Value == 257)
++        //    MicroDelay(5000000);
+ 
+ 	return OK;
+ }
+@@ -500,24 +530,32 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
  	struct UsbPipeAddress pipe, void* buffer, u32 bufferLength,
  	struct UsbDeviceRequest *request) {
  	Result result;
 -	struct UsbPipeAddress tempPipe;
-+	static volatile struct UsbDeviceRequest qwqreq __attribute__((section(".bss.dmem")));
-+	static volatile struct UsbPipeAddress tempPipe __attribute__((section(".bss.dmem")));
-+	qwqreq = *request;
-+	request = (struct UsbDeviceRequest *)&qwqreq;
++	static int count = 0;
++	static volatile struct UsbDeviceRequest qwqreq[32] __attribute__((section(".bss.dmem")));
++	static volatile struct UsbPipeAddress tempPipes[32] __attribute__((section(".bss.dmem")));
++	qwqreq[count] = *request;
++	request = (struct UsbDeviceRequest *)&qwqreq[count];
++	volatile struct UsbPipeAddress *tempPipe = &tempPipes[count++];
  	if (pipe.Device == RootHubDeviceNumber) {
- 		return HcdProcessRootHubMessage(device, pipe, buffer, bufferLength, request);
+-		return HcdProcessRootHubMessage(device, pipe, buffer, bufferLength, request);
++		result = HcdProcessRootHubMessage(device, pipe, buffer, bufferLength, request);
++		count--;
++		return result;
  	}
-@@ -516,7 +519,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
- 	tempPipe.Type = Control;
- 	tempPipe.Direction = Out;
+ 
+ 	device->Error = Processing;
+ 	device->LastTransfer = 0;
+ 			
+ 	// Setup
+-	tempPipe.Speed = pipe.Speed;
+-	tempPipe.Device = pipe.Device;
+-	tempPipe.EndPoint = pipe.EndPoint;
+-	tempPipe.MaxSize = pipe.MaxSize;
+-	tempPipe.Type = Control;
+-	tempPipe.Direction = Out;
++	tempPipe->Speed = pipe.Speed;
++	tempPipe->Device = pipe.Device;
++	tempPipe->EndPoint = pipe.EndPoint;
++	tempPipe->MaxSize = pipe.MaxSize;
++	tempPipe->Type = Control;
++	tempPipe->Direction = Out;
  	
 -	if ((result = HcdChannelSendWait(device, &tempPipe, 0, request, 8, request, Setup)) != OK) {		
-+	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, request, 8, request, Setup)) != OK) {		
++	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)tempPipe, 0, request, 8, request, Setup)) != OK) {		
  		LOGF("HCD: Could not send SETUP to %s.\n", UsbGetDescription(device));
++		count--;
  		return OK;
  	}
-@@ -533,7 +536,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
- 		tempPipe.Type = Control;
- 		tempPipe.Direction = pipe.Direction;
+ 
+@@ -526,15 +564,16 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 		if (pipe.Direction == Out) {
+ 			MemoryCopy(databuffer, buffer, bufferLength);
+ 		}
+-		tempPipe.Speed = pipe.Speed;
+-		tempPipe.Device = pipe.Device;
+-		tempPipe.EndPoint = pipe.EndPoint;
+-		tempPipe.MaxSize = pipe.MaxSize;
+-		tempPipe.Type = Control;
+-		tempPipe.Direction = pipe.Direction;
++		tempPipe->Speed = pipe.Speed;
++		tempPipe->Device = pipe.Device;
++		tempPipe->EndPoint = pipe.EndPoint;
++		tempPipe->MaxSize = pipe.MaxSize;
++		tempPipe->Type = Control;
++		tempPipe->Direction = pipe.Direction;
  		
 -		if ((result = HcdChannelSendWait(device, &tempPipe, 0, databuffer, bufferLength, request, Data1)) != OK) {		
-+		if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, databuffer, bufferLength, request, Data1)) != OK) {		
++		if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)tempPipe, 0, databuffer, bufferLength, request, Data1)) != OK) {		
  			LOGF("HCD: Could not send DATA to %s.\n", UsbGetDescription(device));
++			count--;
  			return OK;
  		}
-@@ -566,7 +569,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
- 	tempPipe.Type = Control;
- 	tempPipe.Direction = ((bufferLength == 0) || pipe.Direction == Out) ? In : Out;
+ 						
+@@ -559,15 +598,16 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 	}
+ 
+ 	// Status
+-	tempPipe.Speed = pipe.Speed;
+-	tempPipe.Device = pipe.Device;
+-	tempPipe.EndPoint = pipe.EndPoint;
+-	tempPipe.MaxSize = pipe.MaxSize;
+-	tempPipe.Type = Control;
+-	tempPipe.Direction = ((bufferLength == 0) || pipe.Direction == Out) ? In : Out;
++	tempPipe->Speed = pipe.Speed;
++	tempPipe->Device = pipe.Device;
++	tempPipe->EndPoint = pipe.EndPoint;
++	tempPipe->MaxSize = pipe.MaxSize;
++	tempPipe->Type = Control;
++	tempPipe->Direction = ((bufferLength == 0) || pipe.Direction == Out) ? In : Out;
  	
 -	if ((result = HcdChannelSendWait(device, &tempPipe, 0, databuffer, 0, request, Data1)) != OK) {		
-+	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)&tempPipe, 0, databuffer, 0, request, Data1)) != OK) {		
++	if ((result = HcdChannelSendWait(device, (struct UsbPipeAddress *)tempPipe, 0, databuffer, 0, request, Data1)) != OK) {		
  		LOGF("HCD: Could not send STATUS to %s.\n", UsbGetDescription(device));
++		count--;
  		return OK;
  	}
+ 
+@@ -577,6 +617,7 @@ Result HcdSumbitControlMessage(struct UsbDevice *device,
+ 
+ 	device->Error = NoError;
+ 
++	count--;
+ 	return OK;
+ }
+ 	
 diff --git a/source/platform/platform.c b/source/platform/platform.c
 index 4d46c66..8adc970 100644
 --- a/source/platform/platform.c
@@ -380,10 +587,53 @@ index 4d46c66..8adc970 100644
 \ No newline at end of file
 +}
 diff --git a/source/usbd/usbd.c b/source/usbd/usbd.c
-index c0c1ebd..c5a1fc6 100644
+index c0c1ebd..c3cc1ae 100644
 --- a/source/usbd/usbd.c
 +++ b/source/usbd/usbd.c
-@@ -644,4 +644,4 @@ void csudUsbCheckForChange() {
+@@ -81,12 +81,18 @@ Result UsbControlMessage(struct UsbDevice *device,
+ 	struct UsbDeviceRequest *request, u32 timeout) {
+ 	Result result;
+ 
++	static u8 count = 0;
++	static volatile struct UsbDeviceRequest qwqreq[32] __attribute__((section(".bss.dmem")));
++	qwqreq[count] = *request;
++	request = (struct UsbDeviceRequest *)&qwqreq[count++];
++
+ 	if (((u32)buffer & 0x3) != 0)
+ 		LOG_DEBUG("USBD: Warning message buffer not word aligned.\n");
+ 	result = HcdSumbitControlMessage(device, pipe, buffer, bufferLength, request);
+ 
+ 	if (result != OK) {
+ 		LOG_DEBUGF("USBD: Failed to send message to %s: %d.\n", UsbGetDescription(device), result);
++		count--;
+ 		return result;
+ 	}
+ 
+@@ -95,6 +101,7 @@ Result UsbControlMessage(struct UsbDevice *device,
+ 
+ 	if ((device->Error & Processing)) {
+ 		LOG_DEBUGF("USBD: Message to %s timeout reached.\n", UsbGetDescription(device));
++		count--;
+ 		return ErrorTimeout;
+ 	}
+ 
+@@ -103,6 +110,7 @@ Result UsbControlMessage(struct UsbDevice *device,
+ 			// Check we're still connected!
+ 			LOG_DEBUGF("USBD: Verifying %s is still connected.\n", UsbGetDescription(device));
+ 			if ((result = device->Parent->DeviceCheckConnection(device->Parent, device)) != OK) {
++				count--;
+ 				return ErrorDisconnected;
+ 			}		
+ 			LOG_DEBUGF("USBD: Yes, %s is still connected.\n", UsbGetDescription(device));
+@@ -110,6 +118,7 @@ Result UsbControlMessage(struct UsbDevice *device,
+ 		result = ErrorDevice;
+ 	}
+ 
++	count--;
+ 	return result;
+ }
+ 
+@@ -644,4 +653,4 @@ void csudUsbCheckForChange() {
  	if (Devices[0] != NULL &&
  		Devices[0]->DeviceCheckForChange != NULL)
  		Devices[0]->DeviceCheckForChange(Devices[0]);

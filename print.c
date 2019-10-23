@@ -47,6 +47,9 @@ void print_putchar(char ch)
     } else if (ch == '\r') {
         x = 0;
         return;
+    } else if (ch == '\b') {
+        x = y = 0;
+        return;
     }
 
     uint16_t x0 = (ch - 32) * CHAR_W;

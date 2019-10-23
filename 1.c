@@ -2,6 +2,7 @@
 #include <string.h>
 #include "print.h"
 #include "usbd/usbd.h"
+#include "device/hid/keyboard.h"
 #include "device/hid/gamepad.h"
 
 #define GPIO_BASE   0x20200000
@@ -350,6 +351,8 @@ void kernel_main()
         csudUsbCheckForChange();
         if (GamepadCount() > 0)
             if (GamepadPoll(GamepadGetAddress(0)) != OK) break;
+        //if (csudKeyboardCount() > 0)
+        //    if (csudKeyboardPoll(csudKeyboardGetAddress(0)) != OK) break;
         DSB();
         //for (uint32_t i = 0; i < 50000000; i++) __asm__ __volatile__ ("");
     }
