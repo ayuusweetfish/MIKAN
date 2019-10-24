@@ -82,42 +82,13 @@ void murmur(uint32_t num)
     DMB();
 }
 
-// Single tag at a time
-
-#define mbox_buf(__sz) \
-    struct buf_t {              \
-        uint32_t size;          \
-        uint32_t code;          \
-        struct tag_t {          \
-            uint32_t id;        \
-            uint32_t size;      \
-            uint32_t code;      \
-            union {             \
-                uint32_t u32[__sz / 4]; \
-                uint16_t u16[__sz / 2]; \
-                uint8_t u8[__sz];       \
-            };                  \
-        } tag;                  \
-        uint32_t end_tag;       \
-    } __attribute__((aligned(16)))
-
-#define mbox_init(__buf)    do {    \
-    (__buf).size = sizeof (__buf);  \
-    (__buf).code = 0; /* Request */ \
-    (__buf).tag.size = sizeof (__buf).tag.u8;   \
-    (__buf).tag.code = 0; /* Request */         \
-    (__buf).end_tag = 0;            \
-} while (0)
-
 uint32_t get_pixel_order()
 {
     static mbox_buf(4) buf __attribute__((section(".bss.dmem")));
     mbox_init(buf);
     buf.tag.id = 0x40006;   // Get pixel order
-    buf.tag.u32[0] = 123;   // Don't care
-
-    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
-    recv_mail(MAIL0_CH_PROP);
+    buf.tag.u32[0] = 123;
+    mbox_emit(buf);
     return buf.tag.u32[0];
 }
 
@@ -126,12 +97,9 @@ void set_virtual_offs(uint32_t x, uint32_t y)
     static mbox_buf(8) buf __attribute__((section(".bss.dmem")));
     mbox_init(buf);
     buf.tag.id = 0x48009;   // Set virtual offset
-    buf.tag.size = 8;
     buf.tag.u32[0] = x;
     buf.tag.u32[1] = y;
-
-    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
-    recv_mail(MAIL0_CH_PROP);
+    mbox_emit(buf);
 }
 
 static volatile bool new_frame = false;
@@ -289,6 +257,12 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
+    uint8_t mac_addr[6];
+    GetMACAddress(mac_addr);
+    printf("MAC address:\n");
+    DebugHexdump(mac_addr, 6, NULL);
+
+    SetPowerStateOn(3);
     //USPiInitialize();
 
     while (1) {
@@ -296,7 +270,7 @@ void kernel_main()
         usDelay(1000000);
         int a = 3;
         LogWrite("main", 4, "QwQ");
-        set_virtual_offs(0, 20);
+        set_virtual_offs(0, 4);
     }
 
 /*
