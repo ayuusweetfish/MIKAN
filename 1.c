@@ -1,8 +1,8 @@
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 #include "print.h"
-#include "usbd/usbd.h"
-#include "device/hid/keyboard.h"
+#include "printf/printf.h"
 
 #define GPIO_BASE   0x20200000
 
@@ -265,16 +265,16 @@ void draw()
     t = get_time() - t0;
     frm++;
     print_setbuf(gbuf);
-    print_putchar('\r');
-    print_putchar('0' + frm / 10000 % 10);
-    print_putchar('0' + frm / 1000 % 10);
-    print_putchar('0' + frm / 100 % 10);
-    print_putchar('0' + frm / 10 % 10);
-    print_putchar('0' + frm % 10);
-    print_putchar(' ');
-    print_putchar('0' + frm * 1000000 / t / 100);
-    print_putchar('0' + frm * 1000000 / t / 10 % 10);
-    print_putchar('0' + frm * 1000000 / t % 10);
+    _putchar('\r');
+    _putchar('0' + frm / 10000 % 10);
+    _putchar('0' + frm / 1000 % 10);
+    _putchar('0' + frm / 100 % 10);
+    _putchar('0' + frm / 10 % 10);
+    _putchar('0' + frm % 10);
+    _putchar(' ');
+    _putchar('0' + frm * 1000000 / t / 100);
+    _putchar('0' + frm * 1000000 / t / 10 % 10);
+    _putchar('0' + frm * 1000000 / t % 10);
 }
 
 void kernel_main()
@@ -333,23 +333,13 @@ void kernel_main()
 
     DMB();
     print_init(buf, f.pwidth, f.pheight, f.pitch);
-    print("Hello world!\nHello MIKAN!\n");
-    print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
+    printf("Hello world!\nHello MIKAN!\n");
+    printf("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
     printf("%d %d\n", dmem_start, dmem_end);
     DSB();
 
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
-
-    DMB();
-    csudUsbInitialise();
-    DSB();
-
-    while (1) {
-        DMB();
-        csudUsbCheckForChange();
-        DSB();
-    }
 
 /*
     // Start system timer

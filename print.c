@@ -38,7 +38,7 @@ static inline void reset_vert()
     b = (seed & 0x7f) + 0x60;
 }
 
-void print_putchar(char ch)
+void _putchar(char ch)
 {
     if (ch == '\n') {
         x = 0;
@@ -70,11 +70,6 @@ void print_putchar(char ch)
         x = 0;
         if ((y += CHAR_H) > h - CHAR_H) reset_vert();
     }
-}
-
-void LogPrint(const char *str, uint32_t len)
-{
-    while (*str != '\0') print_putchar(*str++);
 }
 
 // ffmpeg -f rawvideo -pix_fmt gray - -i font.png | hexdump -ve '1/1 "%.2x"' | fold -w96 | sed -e 's/00/0,/g' | sed -e 's/ff/1,/g'
