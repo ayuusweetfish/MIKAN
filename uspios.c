@@ -1,4 +1,5 @@
 #include "common.h"
+#include "uspi/assert.h"
 
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 
@@ -38,6 +39,8 @@ void CancelKernelTimer (unsigned hTimer)
 
 void ConnectInterrupt (unsigned nIRQ, TInterruptHandler *pHandler, void *pParam)
 {
+    assert(nIRQ == 9);
+    *INT_IRQENAB1 = *INT_IRQENAB1 | (1 << 9);
 }
 
 int SetPowerStateOn (unsigned nDeviceId)
@@ -88,6 +91,9 @@ void LogWrite (const char *pSource,
 
 void uspi_assertion_failed (const char *pExpr, const char *pFile, unsigned nLine)
 {
+    LogWrite("assert", LOG_ERROR,
+        "Assertion failed: %s (%s:%d)", pExpr, pFile, nLine);
+    while (1) { }
 }
 
 void DebugHexdump (const void *pBuffer, unsigned nBufLen, const char *pSource)

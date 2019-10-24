@@ -107,11 +107,12 @@ static volatile bool new_frame = false;
 void __attribute__((interrupt("IRQ"))) _int_irq()
 {
     DMB(); DSB();
-    *SYSTMR_CS = 8;
+    while (*SYSTMR_CS & 8) *SYSTMR_CS = 8;
     uint32_t t = *SYSTMR_CLO;
-    t = t - t % 16666 + 16666;
+    t = t - t % 500000 + 500000;
     *SYSTMR_C3 = t;
     DMB(); DSB();
+    printf("!!");
     new_frame = true;
 }
 
@@ -203,6 +204,11 @@ void kernel_main()
     // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
     DSB();
     *INT_IRQENAB1 = 8;
+    DMB();
+
+    DSB();
+    *SYSTMR_CS = 8;
+    *SYSTMR_C3 = 5000000;
     DMB();
 
     _enable_int();
