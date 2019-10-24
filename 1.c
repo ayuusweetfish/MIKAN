@@ -3,6 +3,7 @@
 #include <string.h>
 #include "print.h"
 #include "printf/printf.h"
+#include "uspi.h"
 
 #define GPIO_BASE   0x20200000
 
@@ -340,6 +341,12 @@ void kernel_main()
 
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
+
+    USPiInitialize();
+
+    while (1) {
+        printf("%d\n", USPiKeyboardAvailable());
+    }
 
 /*
     // Start system timer
