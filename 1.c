@@ -188,6 +188,14 @@ void timer3_handler(void *_unused)
     *SYSTMR_C3 = t;
 }
 
+void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
+{
+    _putchar('>');
+    _putchar('0' + h / 10);
+    _putchar('0' + h % 10);
+    _putchar('\n');
+}
+
 void kernel_main()
 {
     DSB();
@@ -201,13 +209,19 @@ void kernel_main()
     DMB();
 
     DSB();
-    *SYSTMR_CS = 8;
     *SYSTMR_C3 = 5000000;
+    *SYSTMR_CS = 12;
     DMB();
 
     _enable_int();
 
+    DSB();
     set_irq_handler(3, timer3_handler, NULL);
+    uspios_init();
+    DMB();
+
+    StartKernelTimer(100, qwqwq, NULL, NULL);
+    StartKernelTimer(200, qwqwq, NULL, NULL);
 
     // Prepare TLB
     // Enable MMU!
@@ -271,7 +285,7 @@ void kernel_main()
         //printf("%d\n", USPiKeyboardAvailable());
         usDelay(1000000);
         int a = 3;
-        LogWrite("main", 4, "QwQ");
+        LogWrite("main", 4, "QwQ %d", *SYSTMR_CS);
         set_virtual_offs(0, 4);
     }
 

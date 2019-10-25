@@ -27,14 +27,67 @@ void usDelay (unsigned nMicroSeconds)
     DMB();
 }
 
+#define MAX_TIMERS  128
+static struct qwq_timer_t {
+    TKernelTimerHandler *handler;
+    void *arg1, *arg2;
+    uint32_t trigger;
+} timers[MAX_TIMERS] = {{ 0 }};
+static uint8_t timer_count = 0;
+static volatile uint8_t timer_tick = 0;
+
+// Handle-to-index map
+// TODO: Implement later
+//static uint8_t timer_index[MAX_TIMERS];
+//static uint8_t timer_avail_handles[MAX_TIMERS];
+
 unsigned StartKernelTimer (unsigned             nHzDelay,
                            TKernelTimerHandler *pHandler,
                            void *pParam, void *pContext)
 {
+    if (timer_count == MAX_TIMERS) {
+        LogWrite("timer", LOG_ERROR, "Too many timers");
+        return 0;
+    }
+    timers[timer_count].handler = pHandler;
+    timers[timer_count].arg1 = pParam;
+    timers[timer_count].arg2 = pContext;
+    timers[timer_count].trigger = timer_tick + nHzDelay;
+    return ++timer_count;
 }
 
 void CancelKernelTimer (unsigned hTimer)
 {
+    timers[hTimer].handler = NULL;
+}
+
+static void timer2_handler(void *_unused)
+{
+    DMB(); DSB();
+    do *SYSTMR_CS = 4; while (*SYSTMR_CS & 4);
+    uint32_t t = *SYSTMR_CLO;
+    t = t - t % (1000000 / HZ) + (1000000 / HZ);
+    *SYSTMR_C2 = t;
+
+    DMB(); DSB();
+    timer_tick++;
+    for (uint8_t i = 0; i < timer_count; i++)
+        if (timers[i].handler && (int32_t)(timers[i].trigger - timer_tick) <= 0) {
+            TKernelTimerHandler *h = timers[i].handler;
+            timers[i].handler = NULL;
+            h(i + 1, timers[i].arg1, timers[i].arg2);
+        }
+}
+
+void uspios_init()
+{
+    DMB(); DSB();
+    *SYSTMR_CS = 4;
+    *SYSTMR_C2 = 3000000;
+    DMB(); DSB();
+    *INT_IRQENAB1 = 4;
+    DMB(); DSB();
+    set_irq_handler(2, timer2_handler, NULL);
 }
 
 void ConnectInterrupt (unsigned nIRQ, TInterruptHandler *pHandler, void *pParam)

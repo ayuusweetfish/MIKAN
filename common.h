@@ -67,6 +67,8 @@ typedef void (*irq_handler)(void *);
 // Handlers do not need barriers at the beginning or the end
 void set_irq_handler(uint8_t source, irq_handler f, void *arg);
 
+void uspios_init();
+
 // Single tag at a time
 
 #define mbox_buf(__sz) \
