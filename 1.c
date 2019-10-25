@@ -107,12 +107,12 @@ static volatile bool new_frame = false;
 void __attribute__((interrupt("IRQ"))) _int_irq()
 {
     DMB(); DSB();
-    while (*SYSTMR_CS & 8) *SYSTMR_CS = 8;
+    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
     uint32_t t = *SYSTMR_CLO;
     t = t - t % 500000 + 500000;
     *SYSTMR_C3 = t;
     DMB(); DSB();
-    printf("!!");
+    _putchar('!');
     new_frame = true;
 }
 
