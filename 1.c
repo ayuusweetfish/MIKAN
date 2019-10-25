@@ -102,20 +102,6 @@ void set_virtual_offs(uint32_t x, uint32_t y)
     mbox_emit(buf);
 }
 
-static volatile bool new_frame = false;
-
-void __attribute__((interrupt("IRQ"))) _int_irq()
-{
-    DMB(); DSB();
-    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
-    uint32_t t = *SYSTMR_CLO;
-    t = t - t % 500000 + 500000;
-    *SYSTMR_C3 = t;
-    DMB(); DSB();
-    _putchar('!');
-    new_frame = true;
-}
-
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
     _set_domain_access((3 << 2) | 3);
@@ -194,6 +180,14 @@ void draw()
     _putchar('0' + frm * 1000000 / t % 10);
 }
 
+void timer3_handler(void *_unused)
+{
+    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
+    uint32_t t = *SYSTMR_CLO;
+    t = t - t % 500000 + 500000;
+    *SYSTMR_C3 = t;
+}
+
 void kernel_main()
 {
     DSB();
@@ -212,6 +206,8 @@ void kernel_main()
     DMB();
 
     _enable_int();
+
+    set_irq_handler(3, timer3_handler, NULL);
 
     // Prepare TLB
     // Enable MMU!
@@ -289,7 +285,6 @@ void kernel_main()
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
     for (uint32_t i = 0; i < 2000; i++) {
-        new_frame = false;
         uint32_t t = get_time();
         draw();
         uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);

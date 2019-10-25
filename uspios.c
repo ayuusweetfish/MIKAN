@@ -39,8 +39,7 @@ void CancelKernelTimer (unsigned hTimer)
 
 void ConnectInterrupt (unsigned nIRQ, TInterruptHandler *pHandler, void *pParam)
 {
-    assert(nIRQ == 9);
-    *INT_IRQENAB1 = *INT_IRQENAB1 | (1 << 9);
+    set_irq_handler(nIRQ, pHandler, pParam);
 }
 
 int SetPowerStateOn (unsigned nDeviceId)

@@ -62,6 +62,11 @@ void _enter_user_mode();
 
 void syscall(uint32_t code, uint32_t arg);
 
+typedef void (*irq_handler)(void *);
+// Pass in NULL to cancel
+// Handlers do not need barriers at the beginning or the end
+void set_irq_handler(uint8_t source, irq_handler f, void *arg);
+
 // Single tag at a time
 
 #define mbox_buf(__sz) \
