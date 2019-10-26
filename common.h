@@ -45,6 +45,7 @@
 #define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
 #define INT_IRQPEND1    (volatile uint32_t *)(INT_BASE + 0x204)
 #define INT_IRQENAB1    (volatile uint32_t *)(INT_BASE + 0x210)
+#define INT_IRQDISA1    (volatile uint32_t *)(INT_BASE + 0x21c)
 #define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
 
 #define INT_IRQ_ARMTMR  1
@@ -80,9 +81,9 @@ void uspios_init();
             volatile uint32_t size;     \
             volatile uint32_t code;     \
             volatile union {            \
-                volatile uint32_t u32[__sz / 4];    \
-                volatile uint16_t u16[__sz / 2];    \
-                volatile uint8_t u8[__sz];          \
+                volatile uint32_t u32[(__sz + 3) / 4];  \
+                volatile uint16_t u16[__sz / 2];        \
+                volatile uint8_t u8[__sz];              \
             };                          \
         } tag __attribute__((packed));  \
         volatile uint32_t end_tag;      \
@@ -97,7 +98,7 @@ void uspios_init();
 } while (0)
 
 #define mbox_emit(__buf)    do {    \
-    send_mail(((uint32_t)&(__buf)) >> 4, MAIL0_CH_PROP);    \
+    send_mail(((uint32_t)&(__buf) | 0xc0000000) >> 4, MAIL0_CH_PROP);    \
     recv_mail(MAIL0_CH_PROP);       \
 } while (0)
 

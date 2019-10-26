@@ -3,8 +3,24 @@
 
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 
+static uint8_t heap[1 << 19] __attribute__((section(".bss.dmem")));
+static uint32_t ptr = 0;
+
+void uspi_EnterCritical (void);
+void uspi_LeaveCritical (void);
+
 void *malloc (unsigned nSize)
 {
+    uspi_EnterCritical();
+    // TODO: Make this work with interrupt contexts
+    void *ret = (void *)(heap + ptr);
+    nSize <<= 4;
+    ptr += nSize;
+    uspi_LeaveCritical();
+    DMB(); DSB();
+    LogWrite("malloc", LOG_DEBUG, "(%d) Total allocated %d bytes - %x", nSize, ptr, ret);
+    DMB(); DSB();
+    return ret;
 }
 
 void free (void *pBlock)
@@ -18,13 +34,12 @@ void MsDelay (unsigned nMilliSeconds)
 
 void usDelay (unsigned nMicroSeconds)
 {
-    DMB();
-    uint32_t val = *SYSTMR_CLO;
-    *SYSTMR_C0 = val + nMicroSeconds;
-    while ((*SYSTMR_CS) & 1) { *SYSTMR_CS = 1; DMB(); DSB(); }
-    while (((*SYSTMR_CS) & 1) == 0) { }
-    while ((*SYSTMR_CS) & 1) { *SYSTMR_CS = 1; DMB(); DSB(); }
-    DMB();
+    /*DSB(); DMB();
+    uint32_t val = *SYSTMR_CLO + nMicroSeconds;
+    DSB(); DMB();
+    while (*SYSTMR_CLO < val) { }
+    DSB(); DMB();*/
+    for (unsigned i = 0; i < 350 * nMicroSeconds; i++) __asm__ __volatile__ ("");
 }
 
 #define MAX_TIMERS  128
@@ -45,6 +60,7 @@ unsigned StartKernelTimer (unsigned             nHzDelay,
                            TKernelTimerHandler *pHandler,
                            void *pParam, void *pContext)
 {
+    /*
     if (timer_count == MAX_TIMERS) {
         LogWrite("timer", LOG_ERROR, "Too many timers");
         return 0;
@@ -53,12 +69,21 @@ unsigned StartKernelTimer (unsigned             nHzDelay,
     timers[timer_count].arg1 = pParam;
     timers[timer_count].arg2 = pContext;
     timers[timer_count].trigger = timer_tick + nHzDelay;
+    LogWrite("timer", LOG_DEBUG, "Registered %u (after %u)", timer_count + 1, nHzDelay);
     return ++timer_count;
+    */
 }
 
 void CancelKernelTimer (unsigned hTimer)
 {
-    timers[hTimer].handler = NULL;
+    /*
+    if (hTimer <= 0 || hTimer > timer_count) {
+        LogWrite("timer", LOG_DEBUG, "Invalid cancellation %u", hTimer);
+        return;
+    }
+    LogWrite("timer", LOG_DEBUG, "Cancelled %u", hTimer);
+    timers[hTimer - 1].handler = NULL;
+    */
 }
 
 static void timer2_handler(void *_unused)
@@ -75,19 +100,23 @@ static void timer2_handler(void *_unused)
         if (timers[i].handler && (int32_t)(timers[i].trigger - timer_tick) <= 0) {
             TKernelTimerHandler *h = timers[i].handler;
             timers[i].handler = NULL;
+            LogWrite("timer", LOG_DEBUG, "Called %u", i + 1);
             h(i + 1, timers[i].arg1, timers[i].arg2);
         }
 }
 
 void uspios_init()
 {
-    DMB(); DSB();
+    /*
+    DSB();
     *SYSTMR_CS = 4;
     *SYSTMR_C2 = 3000000;
     DMB(); DSB();
     *INT_IRQENAB1 = 4;
     DMB(); DSB();
     set_irq_handler(2, timer2_handler, NULL);
+    DMB();
+    */
 }
 
 void ConnectInterrupt (unsigned nIRQ, TInterruptHandler *pHandler, void *pParam)
@@ -97,24 +126,26 @@ void ConnectInterrupt (unsigned nIRQ, TInterruptHandler *pHandler, void *pParam)
 
 int SetPowerStateOn (unsigned nDeviceId)
 {
-    static mbox_buf(8) buf __attribute__((section(".bss.dmem")));
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
     mbox_init(buf);
     buf.tag.id = 0x28001;   // Set power state
-    buf.tag.u8[0] = nDeviceId;
-    buf.tag.u8[1] = 3;      // on | wait
+    buf.tag.u32[0] = nDeviceId;
+    buf.tag.u32[1] = 3;     // on | wait
     mbox_emit(buf);
-    if ((buf.tag.u8[1] & 3) != 3) {
+    if ((buf.tag.u32[1] & 1) != 1) {
         LogWrite("SetPowerStateOn", LOG_ERROR,
-            "Mailbox response has flags %d instead of 3, for device %d\n",
-            buf.tag.u8[1], nDeviceId);
+            "Mailbox response has flags %d instead of 3, for device %d",
+            buf.tag.u32[1], nDeviceId);
         return 0;
     }
+    LogWrite("SetPowerStateOn", LOG_DEBUG,
+        "Device ID: %u; returned state: %u", nDeviceId, buf.tag.u32[1]);
     return 1;
 }
 
 int GetMACAddress (unsigned char Buffer[6])
 {
-    static mbox_buf(6) buf __attribute__((section(".bss.dmem")));
+    static mbox_buf(6) buf __attribute__((section(".bss.dmem"), aligned(16)));
     mbox_init(buf);
     buf.tag.id = 0x10003;   // Get MAC address
     mbox_emit(buf);

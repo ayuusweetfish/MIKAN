@@ -16,15 +16,15 @@ void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t
 
 void send_mail(uint32_t data, uint8_t channel)
 {
-    DSB();
+    DMB(); DSB();
     while ((*MAIL0_STATUS) & (1u << 31)) { }
     *MAIL0_WRITE = (data << 4) | (channel & 15);
-    DMB();
+    DMB(); DSB();
 }
 
 uint32_t recv_mail(uint8_t channel)
 {
-    DSB();
+    DMB(); DSB();
     do {
         while ((*MAIL0_STATUS) & (1u << 30)) { }
         uint32_t data = *MAIL0_READ;
@@ -202,26 +202,16 @@ void kernel_main()
     *GPFSEL4 |= (1 << 21);
     DMB();
 
-    // Enable interrupts from the system timer
-    // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
-    DSB();
-    *INT_IRQENAB1 = 8;
-    DMB();
+    _enable_int();
 
     DSB();
     *SYSTMR_C3 = 5000000;
     *SYSTMR_CS = 12;
     DMB();
 
-    _enable_int();
-
     DSB();
     set_irq_handler(3, timer3_handler, NULL);
-    uspios_init();
     DMB();
-
-    StartKernelTimer(100, qwqwq, NULL, NULL);
-    StartKernelTimer(200, qwqwq, NULL, NULL);
 
     // Prepare TLB
     // Enable MMU!
@@ -273,20 +263,20 @@ void kernel_main()
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
+    uspios_init();
+
     uint8_t mac_addr[6];
     GetMACAddress(mac_addr);
     printf("MAC address:\n");
     DebugHexdump(mac_addr, 6, NULL);
 
-    SetPowerStateOn(3);
-    //USPiInitialize();
+    USPiInitialize();
+    printf("!!!!!!!\n");
 
     while (1) {
-        //printf("%d\n", USPiKeyboardAvailable());
+        printf("#gamepads %d\n", USPiGamePadAvailable());
+        //USPiKeyboardSetLEDs(LED_NUM_LOCK | LED_CAPS_LOCK | LED_SCROLL_LOCK);
         usDelay(1000000);
-        int a = 3;
-        LogWrite("main", 4, "QwQ %d", *SYSTMR_CS);
-        set_virtual_offs(0, 4);
     }
 
 /*
