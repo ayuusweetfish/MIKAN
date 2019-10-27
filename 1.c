@@ -31,6 +31,8 @@ uint32_t recv_mail(uint8_t channel)
         if ((data & 15) == channel) {
             DMB();
             return (data >> 4);
+        //} else {
+        //    printf("Incorrect channel (expected %u got %u)\n", channel, data & 15);
         }
     } while (1);
 }
@@ -84,7 +86,7 @@ void murmur(uint32_t num)
 
 uint32_t get_pixel_order()
 {
-    static mbox_buf(4) buf __attribute__((section(".bss.dmem")));
+    static mbox_buf(4) buf __attribute__((section(".bss.dmem"), aligned(16)));
     mbox_init(buf);
     buf.tag.id = 0x40006;   // Get pixel order
     buf.tag.u32[0] = 123;
@@ -94,7 +96,7 @@ uint32_t get_pixel_order()
 
 void set_virtual_offs(uint32_t x, uint32_t y)
 {
-    static mbox_buf(8) buf __attribute__((section(".bss.dmem")));
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
     mbox_init(buf);
     buf.tag.id = 0x48009;   // Set virtual offset
     buf.tag.u32[0] = x;
@@ -225,7 +227,7 @@ void kernel_main()
     for (uint32_t i = dmem_start; i < dmem_end; i++) {
         mmu_table_section(mm_sys, i << 20, i << 20, 0);
     }
-    _enable_mmu((uint32_t)mm_sys);
+    //_enable_mmu((uint32_t)mm_sys);
 
     // Set up framebuffer
     volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
@@ -251,7 +253,7 @@ void kernel_main()
     buf_p = (buf_p >> 20) << 20;
     for (uint32_t i = 0; i < 4; i++)
         mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 4);
-    _flush_mmu_table();
+    //_flush_mmu_table();
 
     DMB();
     print_init(buf, f.pwidth, f.pheight, f.pitch);
@@ -274,8 +276,20 @@ void kernel_main()
     printf("!!!!!!!\n");
 
     while (1) {
-        printf("#gamepads %d\n", USPiGamePadAvailable());
-        //USPiKeyboardSetLEDs(LED_NUM_LOCK | LED_CAPS_LOCK | LED_SCROLL_LOCK);
+        if (USPiKeyboardAvailable()) {
+            USPiKeyboardSetLEDs(LED_NUM_LOCK | LED_CAPS_LOCK | LED_SCROLL_LOCK);
+        } else if (USPiGamePadAvailable()) {
+            uint32_t count = USPiGamePadAvailable();
+            printf("%d gamepads\n", count);
+            for (uint32_t i = 0; i < 1; i++) {
+                const USPiGamePadState *state = USPiGamePadGetStatus(i);
+                uint8_t naxes = state->naxes;
+                uint8_t nhats = state->nhats;
+                uint8_t nbtns = state->nbuttons;
+                printf("%u %u %u\n", naxes, nhats, nbtns);
+                _putchar('\n');
+            }
+        }
         usDelay(1000000);
     }
 

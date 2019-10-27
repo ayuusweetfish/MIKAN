@@ -37,6 +37,7 @@ _int_irq_stub:
     ldr     sp, =#MEM_IRQ_STACK
     sub     lr, lr, #4                      /* lr: return address */
     stmfd   sp!, {r0-r12, lr}               /* save r0-r12 and return address */
+    mov     r0, lr
     bl      _int_irq
     ldmfd   sp!, {r0-r12, pc}^              /* restore registers and return */
 

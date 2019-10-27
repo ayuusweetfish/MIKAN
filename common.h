@@ -98,7 +98,7 @@ void uspios_init();
 } while (0)
 
 #define mbox_emit(__buf)    do {    \
-    send_mail(((uint32_t)&(__buf) | 0xc0000000) >> 4, MAIL0_CH_PROP);    \
+    send_mail(((uint32_t)&(__buf) | 0x40000000) >> 4, MAIL0_CH_PROP);    \
     recv_mail(MAIL0_CH_PROP);       \
 } while (0)
 

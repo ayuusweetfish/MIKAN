@@ -34,12 +34,12 @@ void MsDelay (unsigned nMilliSeconds)
 
 void usDelay (unsigned nMicroSeconds)
 {
-    /*DSB(); DMB();
+    DSB(); DMB();
     uint32_t val = *SYSTMR_CLO + nMicroSeconds;
     DSB(); DMB();
     while (*SYSTMR_CLO < val) { }
-    DSB(); DMB();*/
-    for (unsigned i = 0; i < 350 * nMicroSeconds; i++) __asm__ __volatile__ ("");
+    DSB(); DMB();
+    //for (unsigned i = 0; i < 350 * nMicroSeconds; i++) __asm__ __volatile__ ("");
 }
 
 #define MAX_TIMERS  128
