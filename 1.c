@@ -238,10 +238,10 @@ void kernel_main()
     for (uint32_t i = dmem_start; i < dmem_end; i++) {
         mmu_table_section(mm_sys, i << 20, i << 20, 0);
     }
-    //_enable_mmu((uint32_t)mm_sys);
+    _enable_mmu((uint32_t)mm_sys);
 
     // Set up framebuffer
-    volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
+    static struct fb f_volatile __attribute__((section(".bss.dmem"), aligned(16))) = { 0 };
     f_volatile.pwidth = 512;
     f_volatile.pheight = 512;
     f_volatile.vwidth = 512;
@@ -264,7 +264,7 @@ void kernel_main()
     buf_p = (buf_p >> 20) << 20;
     for (uint32_t i = 0; i < 4; i++)
         mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 4);
-    //_flush_mmu_table();
+    _flush_mmu_table();
 
     DMB();
     print_init(buf, f.pwidth, f.pheight, f.pitch);
