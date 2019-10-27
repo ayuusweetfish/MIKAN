@@ -19,11 +19,26 @@ _addr_int_swi:      .word   _int_swi
 _addr_int_pfabort:  .word   _int_pfabort
 _addr_int_dabort:   .word   _int_dabort
 _addr_int_uhandler: .word   _int_uhandler
-_addr_int_irq:      .word   _int_irq
+_addr_int_irq:      .word   _int_irq_stub
 _addr_int_fiq:      .word   _int_fiq
 
 _int_fiq:
     b       _reset
+
+#define KERNEL_MAX_SIZE         0x400000
+#define EXCEPTION_STACK_SIZE    0x8000
+
+#define MEM_KERNEL_START        0x8000
+#define MEM_KERNEL_END          (MEM_KERNEL_START + KERNEL_MAX_SIZE)
+#define MEM_ABORT_STACK         (MEM_KERNEL_END + EXCEPTION_STACK_SIZE)         // expands down
+#define MEM_IRQ_STACK           (MEM_ABORT_STACK + EXCEPTION_STACK_SIZE)        // expands down
+
+_int_irq_stub:
+    ldr     sp, =#MEM_IRQ_STACK
+    sub     lr, lr, #4                      /* lr: return address */
+    stmfd   sp!, {r0-r12, lr}               /* save r0-r12 and return address */
+    bl      _int_irq
+    ldmfd   sp!, {r0-r12, pc}^              /* restore registers and return */
 
 _reset:
     # Initialize interrupt vector table
