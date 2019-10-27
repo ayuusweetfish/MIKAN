@@ -198,6 +198,17 @@ void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
     _putchar('\n');
 }
 
+void status_handler(unsigned int index, const USPiGamePadState *state)
+{
+    printf("GP %u", index);
+    uint32_t naxes = state->naxes;
+    uint32_t nhats = state->nhats;
+    uint32_t nbtns = state->nbuttons;
+    for (uint32_t i = 0; i < naxes; i++) printf(" %3d", state->axes[i].value); _putchar('|');
+    for (uint32_t i = 0; i < nhats; i++) printf(" %x", state->hats[i]); _putchar('|');
+    printf(" %04x\r", state->buttons);
+}
+
 void kernel_main()
 {
     DSB();
@@ -275,22 +286,12 @@ void kernel_main()
     USPiInitialize();
     printf("!!!!!!!\n");
 
+    uint32_t count = USPiGamePadAvailable();
+    printf("%d gamepad(s)\n", count);
+    USPiGamePadRegisterStatusHandler(status_handler);
+
     while (1) {
-        if (USPiKeyboardAvailable()) {
-            USPiKeyboardSetLEDs(LED_NUM_LOCK | LED_CAPS_LOCK | LED_SCROLL_LOCK);
-        } else if (USPiGamePadAvailable()) {
-            uint32_t count = USPiGamePadAvailable();
-            printf("%d gamepads\n", count);
-            for (uint32_t i = 0; i < 1; i++) {
-                const USPiGamePadState *state = USPiGamePadGetStatus(i);
-                uint8_t naxes = state->naxes;
-                uint8_t nhats = state->nhats;
-                uint8_t nbtns = state->nbuttons;
-                printf("%u %u %u\n", naxes, nhats, nbtns);
-                _putchar('\n');
-            }
-        }
-        usDelay(1000000);
+        _standby();
     }
 
 /*
