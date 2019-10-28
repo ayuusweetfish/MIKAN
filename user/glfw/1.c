@@ -3,19 +3,24 @@
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
+#include <unistd.h>
 
 #define WIN_W   512
 #define WIN_H   512
 
 #define FPS     60
-#define TEX_W   256
-#define TEX_H   256
+#define TEX_W   512
+#define TEX_H   512
 
 static GLFWwindow *window; 
 
-static float vertices[6][2] = {
-    {-1, -1}, {1, -1}, {1, 1},
-    {-1, -1}, {1, 1}, {-1, 1},
+static float vertices[6][4] = {
+    {-1, -1, 0, 0},
+    {1, -1, 1, 0},
+    {1, 1, 1, 1},
+    {-1, -1, 0, 0},
+    {1, 1, 1, 1},
+    {-1, 1, 0, 1},
 };
 
 static unsigned char buf[TEX_W * TEX_H * 4];
@@ -106,21 +111,22 @@ int main()
 #define GLSL(__source) "#version 120\n" #__source
 
     const char *vshader_source = GLSL(
-        attribute vec2 ppp;
-        varying vec2 pos;
+        attribute vec2 screen_pos;
+        attribute vec2 texture_pos;
+        varying vec2 texture_pos_;
         void main()
         {
-            gl_Position = vec4(ppp, 0.0, 1.0);
-            pos = ppp;
+            gl_Position = vec4(screen_pos, 0.0, 1.0);
+            texture_pos_ = texture_pos;
         }
     );
 
     const char *fshader_source = GLSL(
-        varying vec2 pos;
+        varying vec2 texture_pos_;
         uniform sampler2D tex;
         void main()
         {
-            gl_FragColor = texture2D(tex, pos);
+            gl_FragColor = texture2D(tex, texture_pos_);
         }
     );
 
@@ -133,10 +139,15 @@ int main()
     glLinkProgram(prog);
     glUseProgram(prog);
 
-    GLuint ppp_attrib_index = glGetAttribLocation(prog, "ppp");
-    glEnableVertexAttribArray(ppp_attrib_index);
-    glVertexAttribPointer(ppp_attrib_index, 2, GL_FLOAT, GL_FALSE,
-        2 * sizeof(float), 0);
+    GLuint screen_pos_attrib_index = glGetAttribLocation(prog, "screen_pos");
+    glEnableVertexAttribArray(screen_pos_attrib_index);
+    glVertexAttribPointer(screen_pos_attrib_index, 2, GL_FLOAT, GL_FALSE,
+        4 * sizeof(float), 0);
+
+    GLuint texture_pos_attrib_index = glGetAttribLocation(prog, "texture_pos");
+    glEnableVertexAttribArray(texture_pos_attrib_index);
+    glVertexAttribPointer(texture_pos_attrib_index, 2, GL_FLOAT, GL_FALSE,
+        4 * sizeof(float), (const void *)(2 * sizeof(float)));
 
     GLuint tex;
     glGenTextures(1, &tex);
@@ -149,7 +160,7 @@ int main()
     glUniform1i(glGetUniformLocation(prog, "tex"), 0);
 
     glBufferData(GL_ARRAY_BUFFER,
-        12 * sizeof(float), vertices, GL_STREAM_DRAW);
+        24 * sizeof(float), vertices, GL_STREAM_DRAW);
 
     // -- Event/render loop --
 
@@ -165,7 +176,7 @@ int main()
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        while ((cur_time = glfwGetTime()) < last_time + 1.0f / FPS) { }
+        while ((cur_time = glfwGetTime()) < last_time + 1.0f / FPS) usleep(1);
         last_time = cur_time;
 
         update();
@@ -185,15 +196,22 @@ void init()
     puts("^ ^  Hello, world!");
 }
 
+static int x0 = 256, y0 = 256;
+
 void update()
 {
-    static int count = 0;
-    count++;
     for (int i = 0; i < TEX_H; i++)
     for (int j = 0; j < TEX_W; j++) {
         buf[(i * TEX_W + j) * 4] = 
-        buf[(i * TEX_W + j) * 4 + 1] =
-        buf[(i * TEX_W + j) * 4 + 2] =
-        buf[(i * TEX_W + j) * 4 + 3] = (((i ^ j ^ (count & 64)) & 64) ? 255 : 0);
+        buf[(i * TEX_W + j) * 4 + 1] = 
+        buf[(i * TEX_W + j) * 4 + 2] = 192;
+        buf[(i * TEX_W + j) * 4 + 3] = 255;
     }
+    for (int x = x0 - 16; x <= x0 + 16; x++) if (x >= 0 && x < TEX_W)
+    for (int y = y0 - 16; y <= y0 + 16; y++) if (y >= 0 && y < TEX_H) {
+        buf[(y * TEX_W + x) * 4] =
+        buf[(y * TEX_W + x) * 4 + 1] = 128;
+        buf[(y * TEX_W + x) * 4 + 2] = 255;
+    }
+    x0 = (x0 + 17) % (TEX_W + 32) - 16;
 }
