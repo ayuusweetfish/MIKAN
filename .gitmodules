@@ -1,3 +1,6 @@
-[submodule "csud"]
-	path = csud
-	url = ./csud
+[submodule "uspi"]
+	path = uspi
+	url = https://github.com/rsta2/uspi.git
+[submodule "printf"]
+	path = printf
+	url = https://github.com/mpaland/printf.git

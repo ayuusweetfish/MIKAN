@@ -1,61 +1,7 @@
-#include <stdint.h>
-#include <string.h>
-#include "print.h"
-#include "usbd/usbd.h"
-#include "device/hid/keyboard.h"
+#include "common.h"
 
-#define GPIO_BASE   0x20200000
-
-// Act LED is GPIO 47
-#define GPFSEL4     (volatile uint32_t *)(GPIO_BASE + 0x10)
-#define GPSET1      (volatile uint32_t *)(GPIO_BASE + 0x20)
-#define GPCLR1      (volatile uint32_t *)(GPIO_BASE + 0x2c)
-
-#define SYSTMR_BASE 0x20003000
-
-#define SYSTMR_CS   (volatile uint32_t *)(SYSTMR_BASE + 0x00)
-#define SYSTMR_CLO  (volatile uint32_t *)(SYSTMR_BASE + 0x04)
-#define SYSTMR_C0   (volatile uint32_t *)(SYSTMR_BASE + 0x0c)
-#define SYSTMR_C1   (volatile uint32_t *)(SYSTMR_BASE + 0x10)
-#define SYSTMR_C2   (volatile uint32_t *)(SYSTMR_BASE + 0x14)
-#define SYSTMR_C3   (volatile uint32_t *)(SYSTMR_BASE + 0x18)
-
-#define MAIL0_BASE  0x2000b880
-
-#define MAIL0_READ      (volatile uint32_t *)(MAIL0_BASE + 0x00)
-#define MAIL0_STATUS    (volatile uint32_t *)(MAIL0_BASE + 0x18)
-#define MAIL0_WRITE     (volatile uint32_t *)(MAIL0_BASE + 0x20)
-
-#define MAIL0_CH_FB     1
-#define MAIL0_CH_PROP   8
-
-#define ARMTMR_BASE 0x2000b000
-
-#define ARMTMR_LOAD (volatile uint32_t *)(ARMTMR_BASE + 0x400)
-#define ARMTMR_VAL  (volatile uint32_t *)(ARMTMR_BASE + 0x404)
-#define ARMTMR_CTRL (volatile uint32_t *)(ARMTMR_BASE + 0x408)
-#define ARMTMR_IRQC (volatile uint32_t *)(ARMTMR_BASE + 0x40c)
-
-#define INT_BASE    0x2000b000
-#define INT_IRQBASPEND  (volatile uint32_t *)(INT_BASE + 0x200)
-#define INT_IRQPEND1    (volatile uint32_t *)(INT_BASE + 0x204)
-#define INT_IRQENAB1    (volatile uint32_t *)(INT_BASE + 0x210)
-#define INT_IRQBASENAB  (volatile uint32_t *)(INT_BASE + 0x218)
-
-#define INT_IRQ_ARMTMR  1
-
-#define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
-#define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
-
-void _enable_int();
-void _enable_mmu(uint32_t table_base_addr);
-void _set_domain_access(uint32_t control);
-void _flush_mmu_table();
-void _standby();
-uint32_t _get_mode();
-void _enter_user_mode();
-
-void syscall(uint32_t code, uint32_t arg);
+extern unsigned char _bss_dmem_begin;
+extern unsigned char _bss_dmem_end;
 
 uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
 uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
@@ -70,21 +16,23 @@ void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t
 
 void send_mail(uint32_t data, uint8_t channel)
 {
-    DSB();
+    DMB(); DSB();
     while ((*MAIL0_STATUS) & (1u << 31)) { }
     *MAIL0_WRITE = (data << 4) | (channel & 15);
-    DMB();
+    DMB(); DSB();
 }
 
 uint32_t recv_mail(uint8_t channel)
 {
-    DSB();
+    DMB(); DSB();
     do {
         while ((*MAIL0_STATUS) & (1u << 30)) { }
         uint32_t data = *MAIL0_READ;
         if ((data & 15) == channel) {
             DMB();
             return (data >> 4);
+        //} else {
+        //    printf("Incorrect channel (expected %u got %u)\n", channel, data & 15);
         }
     } while (1);
 }
@@ -103,7 +51,7 @@ struct fb {
 };
 
 struct fb f;
-static uint8_t gbuf[256 * 256 * 8];
+static uint8_t gbuf[512 * 512 * 8];
 
 void wait(uint32_t ticks)
 {
@@ -136,64 +84,24 @@ void murmur(uint32_t num)
     DMB();
 }
 
-#define mbox_buf(__sz) \
-    struct buf_t {              \
-        uint32_t size;          \
-        uint32_t code;          \
-        struct tag_t {          \
-            uint32_t id;        \
-            uint32_t size;      \
-            uint32_t code;      \
-            uint32_t val[__sz]; \
-        } tag;                  \
-        uint32_t end_tag;       \
-    } __attribute__((aligned(16)))
-
 uint32_t get_pixel_order()
 {
-    mbox_buf(1) buf;
-
-    buf.size = sizeof buf;
-    buf.code = 0;           // Request
+    static mbox_buf(4) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
     buf.tag.id = 0x40006;   // Get pixel order
-    buf.tag.size = 4;       // Request length
-    buf.tag.code = 0;       // Request
-    buf.tag.val[0] = 123;   // Don't care
-    buf.end_tag = 0;
-
-    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
-    recv_mail(MAIL0_CH_PROP);
-    return buf.tag.val[0];
+    buf.tag.u32[0] = 123;
+    mbox_emit(buf);
+    return buf.tag.u32[0];
 }
 
 void set_virtual_offs(uint32_t x, uint32_t y)
 {
-    mbox_buf(2) buf;
-
-    buf.size = sizeof buf;
-    buf.code = 0;
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
     buf.tag.id = 0x48009;   // Set virtual offset
-    buf.tag.size = 8;
-    buf.tag.code = 0;
-    buf.tag.val[0] = x;
-    buf.tag.val[1] = y;
-    buf.end_tag = 0;
-
-    send_mail(((uint32_t)&buf) >> 4, MAIL0_CH_PROP);
-    recv_mail(MAIL0_CH_PROP);
-}
-
-static volatile bool new_frame = false;
-
-void __attribute__((interrupt("IRQ"))) _int_irq()
-{
-    DMB(); DSB();
-    *SYSTMR_CS = 8;
-    uint32_t t = *SYSTMR_CLO;
-    t = t - t % 16666 + 16666;
-    *SYSTMR_C3 = t;
-    DMB(); DSB();
-    new_frame = true;
+    buf.tag.u32[0] = x;
+    buf.tag.u32[1] = y;
+    mbox_emit(buf);
 }
 
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
@@ -262,16 +170,51 @@ void draw()
     t = get_time() - t0;
     frm++;
     print_setbuf(gbuf);
-    print_putchar('\r');
-    print_putchar('0' + frm / 10000 % 10);
-    print_putchar('0' + frm / 1000 % 10);
-    print_putchar('0' + frm / 100 % 10);
-    print_putchar('0' + frm / 10 % 10);
-    print_putchar('0' + frm % 10);
-    print_putchar(' ');
-    print_putchar('0' + frm * 1000000 / t / 100);
-    print_putchar('0' + frm * 1000000 / t / 10 % 10);
-    print_putchar('0' + frm * 1000000 / t % 10);
+    _putchar('\r');
+    _putchar('0' + frm / 10000 % 10);
+    _putchar('0' + frm / 1000 % 10);
+    _putchar('0' + frm / 100 % 10);
+    _putchar('0' + frm / 10 % 10);
+    _putchar('0' + frm % 10);
+    _putchar(' ');
+    _putchar('0' + frm * 1000000 / t / 100);
+    _putchar('0' + frm * 1000000 / t / 10 % 10);
+    _putchar('0' + frm * 1000000 / t % 10);
+}
+
+void timer3_handler(void *_unused)
+{
+    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
+    uint32_t t = *SYSTMR_CLO;
+    t = t - t % 500000 + 500000;
+    *SYSTMR_C3 = t;
+}
+
+void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
+{
+    _putchar('>');
+    _putchar('0' + h / 10);
+    _putchar('0' + h % 10);
+    _putchar('\n');
+}
+
+void status_handler(unsigned int index, const USPiGamePadState *state)
+{
+    const uint8_t *report = state->report;
+    uint32_t report_len = state->report_len;
+    for (int i = 0; i < report_len; i++) printf(" %02x", report[i]);
+    _putchar('\r');
+    _putchar('\b');
+    _putchar('\b');
+    return;
+
+    printf("GP %u", index);
+    uint32_t naxes = state->naxes;
+    uint32_t nhats = state->nhats;
+    uint32_t nbtns = state->nbuttons;
+    for (uint32_t i = 0; i < naxes; i++) printf(" %3d", state->axes[i].value); _putchar('|');
+    for (uint32_t i = 0; i < nhats; i++) printf(" %x", state->hats[i]); _putchar('|');
+    printf(" %04x\r", state->buttons);
 }
 
 void kernel_main()
@@ -280,27 +223,37 @@ void kernel_main()
     *GPFSEL4 |= (1 << 21);
     DMB();
 
-    // Enable interrupts from the system timer
-    // https://github.com/dwelch67/raspberrypi/tree/master/blinker07
+    _enable_int();
+
     DSB();
-    *INT_IRQENAB1 = 8;
+    *SYSTMR_C3 = 5000000;
+    *SYSTMR_CS = 12;
     DMB();
 
-    _enable_int();
+    DSB();
+    set_irq_handler(3, timer3_handler, NULL);
+    DMB();
 
     // Prepare TLB
     // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(mm_sys, i << 20, i << 20, (i < 4 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i < 1 ? (8 | 4) : 0));
+    }
+    // TODO: Make MMU work with USB again
+    // Disable buffering/caching on .bss.dmem(qwq) sections
+    uint32_t dmem_start = ((uint32_t)&_bss_dmem_begin) >> 20;
+    uint32_t dmem_end = ((uint32_t)&_bss_dmem_end - 1) >> 20;
+    for (uint32_t i = dmem_start; i < dmem_end; i++) {
+        mmu_table_section(mm_sys, i << 20, i << 20, 0);
     }
     _enable_mmu((uint32_t)mm_sys);
 
     // Set up framebuffer
-    volatile struct fb f_volatile __attribute__((aligned(16))) = { 0 };
-    f_volatile.pwidth = 256;
-    f_volatile.pheight = 256;
-    f_volatile.vwidth = 256;
-    f_volatile.vheight = 256 * 2;
+    static struct fb f_volatile __attribute__((section(".bss.dmem"), aligned(16))) = { 0 };
+    f_volatile.pwidth = 512;
+    f_volatile.pheight = 512;
+    f_volatile.vwidth = 512;
+    f_volatile.vheight = 512 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -325,14 +278,34 @@ void kernel_main()
     _flush_mmu_table();
 
     DMB();
-    print_init(gbuf, f.vwidth, f.vheight, f.pitch);
-    print("Hello world!\nHello MIKAN!\n");
-    print("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
+    print_init(buf, f.pwidth, f.pheight, f.pitch);
+    printf("Hello world!\nHello MIKAN!\n");
+    printf("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n\n");
+    printf("%d %d\n", dmem_start, dmem_end);
     DSB();
 
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 
+    uspios_init();
+
+    uint8_t mac_addr[6];
+    GetMACAddress(mac_addr);
+    printf("MAC address:\n");
+    DebugHexdump(mac_addr, 6, NULL);
+
+    USPiInitialize();
+    printf("!!!!!!!\n");
+
+    uint32_t count = USPiGamePadAvailable();
+    printf("%d gamepad(s)\n", count);
+    USPiGamePadRegisterStatusHandler(status_handler);
+
+    while (1) {
+        _standby();
+    }
+
+/*
     // Start system timer
     DSB();
     *SYSTMR_CS = 8;
@@ -342,7 +315,6 @@ void kernel_main()
     uint8_t buffer_id = 0;
     uint32_t last_time = get_time();
     for (uint32_t i = 0; i < 2000; i++) {
-        new_frame = false;
         uint32_t t = get_time();
         draw();
         uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
@@ -384,4 +356,5 @@ void kernel_main()
         static uint32_t count = 0;
         if (++count >= 5) *GPSET1 = (1 << 15);
     }
+*/
 }
