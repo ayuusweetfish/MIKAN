@@ -18,7 +18,7 @@ void *malloc (unsigned nSize)
     ptr += nSize;
     uspi_LeaveCritical();
     DMB(); DSB();
-    LogWrite("malloc", LOG_DEBUG, "(%d) Total allocated %d bytes - %x", nSize, ptr, ret);
+    //LogWrite("malloc", LOG_DEBUG, "(%d) Total allocated %d bytes - %x", nSize, ptr, ret);
     DMB(); DSB();
     return ret;
 }

@@ -200,6 +200,14 @@ void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
 
 void status_handler(unsigned int index, const USPiGamePadState *state)
 {
+    const uint8_t *report = state->report;
+    uint32_t report_len = state->report_len;
+    for (int i = 0; i < report_len; i++) printf(" %02x", report[i]);
+    _putchar('\r');
+    _putchar('\b');
+    _putchar('\b');
+    return;
+
     printf("GP %u", index);
     uint32_t naxes = state->naxes;
     uint32_t nhats = state->nhats;

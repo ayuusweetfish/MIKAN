@@ -44,6 +44,9 @@ void _putchar(char ch)
         x = 0;
         if ((y += CHAR_H) > h - CHAR_H) reset_vert();
         return;
+    } else if (ch == '\b') {
+        y -= CHAR_H;
+        return;
     } else if (ch == '\r') {
         x = 0;
         return;

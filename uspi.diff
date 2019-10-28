@@ -1,0 +1,49 @@
+diff --git a/Rules.mk b/Rules.mk
+index daa4454..a79c391 100644
+--- a/Rules.mk
++++ b/Rules.mk
+@@ -41,7 +41,7 @@ AR	= $(PREFIX)ar
+ 
+ ifeq ($(strip $(AARCH64)),0)
+ ifeq ($(strip $(RASPPI)),1)
+-ARCH	?= -march=armv6j -mtune=arm1176jzf-s -mfloat-abi=hard 
++ARCH	?= -march=armv6j -mtune=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp
+ TARGET	?= kernel
+ else ifeq ($(strip $(RASPPI)),2)
+ ARCH	?= -march=armv7-a -mtune=cortex-a7 -mfloat-abi=hard
+diff --git a/include/uspi.h b/include/uspi.h
+index ad1c404..6ba6f4c 100644
+--- a/include/uspi.h
++++ b/include/uspi.h
+@@ -26,6 +26,8 @@
+ extern "C" {
+ #endif
+ 
++typedef unsigned char u8;
++
+ //
+ // Version information
+ //
+@@ -171,6 +173,9 @@ typedef struct USPiGamePadState
+ 
+     int nbuttons;
+     unsigned int buttons;
++
++    const unsigned char *report;
++    unsigned int report_len;
+ }
+ USPiGamePadState;
+ 
+diff --git a/lib/usbgamepad.c b/lib/usbgamepad.c
+index ddb6d2e..966a593 100644
+--- a/lib/usbgamepad.c
++++ b/lib/usbgamepad.c
+@@ -329,6 +329,8 @@ static void USBGamePadDeviceDecodeReport(TUSBGamePadDevice *pThis)
+ 
+     pState->naxes = naxes;
+     pState->nhats = nhats;
++    pState->report = pReportBuffer;
++    pState->report_len = (offset + 7) / 8;
+ 
+     pThis->m_nReportSize = (offset + 7) / 8;
+ }
