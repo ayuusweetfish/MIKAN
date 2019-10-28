@@ -150,7 +150,12 @@ _enter_user_mode:
     msr     cpsr_c, r0
     bx      r1
 
-.global syscall
-syscall:
-    svc     #0
-    bx      lr
+.global _enter_user_code
+_enter_user_code:
+    # TODO: Avoid duplication
+    mrs     r1, cpsr
+    bic     r1, r1, #0x1f
+    orr     r1, r1, #0x10
+    msr     cpsr_c, r1
+    mov     sp, #0xa0000000
+    bx      r0

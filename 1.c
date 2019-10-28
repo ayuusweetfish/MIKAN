@@ -1,4 +1,7 @@
 #include "common.h"
+#include "user/elf/elf.h"
+
+#include "user_c_a_out.h"
 
 extern unsigned char _bss_dmem_begin;
 extern unsigned char _bss_dmem_end;
@@ -149,35 +152,54 @@ uint32_t get_max_clock_rate()
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    printf("Undefined Instruction\n");
+    DMB();
     while (1) { murmur(2); wait(1000000); }
 }
 
 void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    printf("Undefined Handler\n");
+    DMB();
     while (1) { murmur(3); wait(1000000); }
 }
 
 void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1)
 {
-    _set_domain_access((3 << 2) | 3);
+    //uint32_t lr;
+    //__asm__ __volatile__ ("mov %0, lr" : "=r"(lr) : :);
+    //_set_domain_access((3 << 2) | 3);
+    DMB(); DSB();
+    printf("SVC %d\n", r0);
+    //printf("LR = %x\n", lr);
+    DMB(); DSB();
     if (r0 == 42) {
         *GPCLR1 = r1;
     } else if (r0 == 43) {
         *GPSET1 = r1;
     }
-    _set_domain_access((1 << 2) | 3);
+    DMB(); DSB();
+    //_set_domain_access((1 << 2) | 3);
 }
 
 void __attribute__((interrupt("ABORT"))) _int_pfabort()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    printf("Prefetch Abort\n");
+    DMB();
     while (1) { murmur(5); wait(1000000); }
 }
 
 void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
     _set_domain_access((3 << 2) | 3);
+    DSB();
+    printf("Data Abort\n");
+    DMB();
     while (1) {
         for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
         *GPCLR1 = (1 << 15);
@@ -257,6 +279,15 @@ void status_handler(unsigned int index, const USPiGamePadState *state)
     for (uint32_t i = 0; i < naxes; i++) printf(" %3d", state->axes[i].value); _putchar('|');
     for (uint32_t i = 0; i < nhats; i++) printf(" %x", state->hats[i]); _putchar('|');
     printf(" %04x\r", state->buttons);
+}
+
+void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
+{
+    const char *buf = (const char *)ehdr;
+    uint32_t empty_len =
+        (program->filesz < program->memsz ? program->memsz - program->filesz : 0);
+    memcpy((void *)program->vaddr, buf + program->offs, program->filesz);
+    memset((void *)program->vaddr + program->filesz, 0, empty_len);
 }
 
 void kernel_main()
@@ -342,67 +373,60 @@ void kernel_main()
     printf("MAC address:\n");
     DebugHexdump(mac_addr, 6, NULL);
 
+/*
     USPiInitialize();
     printf("!!!!!!!\n");
 
     uint32_t count = USPiGamePadAvailable();
     printf("%d gamepad(s)\n", count);
     USPiGamePadRegisterStatusHandler(status_handler);
-
-    while (1) {
-        _standby();
-    }
-
-/*
-    // Start system timer
-    DSB();
-    *SYSTMR_CS = 8;
-    *SYSTMR_C3 = *SYSTMR_CLO + 16666;
-    DMB();
-
-    uint8_t buffer_id = 0;
-    uint32_t last_time = get_time();
-    for (uint32_t i = 0; i < 2000; i++) {
-        uint32_t t = get_time();
-        draw();
-        uint32_t virt_y = (buffer_id == 0 ? 0 : f.pheight);
-        uint8_t *scr = buf + virt_y * f.pitch;
-        memcpy(scr, gbuf, f.pitch * f.pheight);
-        set_virtual_offs(0, virt_y);
-        buffer_id ^= 1;
-        print_setbuf(scr);
-        printf("|%d", (uint32_t)scr);
-        last_time = t;
-    }
-
-    *GPCLR1 = (1 << 15);
-    wait(1000000);
+*/
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
     // Doing so will result in a permission fault later in user mode
-    for (uint32_t i = 0; i < 3229; i++) {
-        mmu_table_section(mm_user, i << 20, i << 20, (i == 0 ? (8 | 4) : 0));
-    }
+    memcpy(mm_user, mm_sys, sizeof mm_user);
     mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
     mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
+    for (uint32_t i = 0x80000000; i < 0xa0000000; i += 0x100000) {
+        mmu_table_section(mm_user, i, i - 0x80000000 + 0x1000000, 8 | 4);
+    }
     _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
     _set_domain_access((1 << 2) | 3);
 
-    // Uncommenting will result in a domain fault
-    //_set_domain_access(3);
+    load_elf(user_c_a_out);
+    const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
+    printf("%x\n", (uint32_t)ehdr->entry);
+    printf("%x\n", *(uint32_t *)ehdr->entry);
+    printf("%d\n", _get_mode());
+
     _enter_user_mode();
+/*
+    printf("%d\n", _get_mode());
     while (1) {
         for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
         //*GPCLR1 = (1 << 15);
         syscall(42, 1 << 15);
+        print("QAQ\n");
         for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
         //*GPSET1 = (1 << 15);
         syscall(43, 1 << 15);
+        print("QuQ\n");
         // Trigger a data abort after 5 blinks
         static uint32_t count = 0;
         if (++count >= 5) *GPSET1 = (1 << 15);
     }
+    while (1) { }
 */
+
+    _enter_user_code(ehdr->entry);
+
+    // Should not reach here
+    while (1) {
+        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
+        *GPCLR1 = (1 << 15);
+        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
+        *GPSET1 = (1 << 15);
+    }
 }
