@@ -36,13 +36,21 @@ static void glfw_fbsz_callback(GLFWwindow *window, int w, int h)
 {
     glViewport(0, 0, w, h);
 
-    float xs = w / TEX_W;
-    float ys = h / TEX_H;
+    float xs = (float)w / TEX_W;
+    float ys = (float)h / TEX_H;
     float s = (xs < ys ? xs : ys);
-    float x = s * TEX_W;
-    float y = s * TEX_H;
+    float x = s / xs;
+    float y = s / ys;
+    for (int i = 0; i < 6; i++) {
+        vertices[i][0] = x;
+        vertices[i][1] = y;
+    }
+#define FLIP(_a, _b) (vertices[_a][_b] = -vertices[_a][_b])
+    FLIP(0, 0); FLIP(0, 1); FLIP(1, 1);
+    FLIP(3, 0); FLIP(3, 1); FLIP(5, 0);
+#undef FLIP
     glBufferData(GL_ARRAY_BUFFER,
-        12 * sizeof(float), vertices, GL_STREAM_DRAW);
+        24 * sizeof(float), vertices, GL_STREAM_DRAW);
 }
 
 static inline GLuint load_shader(GLenum type, const char *source)
