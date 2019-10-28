@@ -104,6 +104,48 @@ void set_virtual_offs(uint32_t x, uint32_t y)
     mbox_emit(buf);
 }
 
+uint32_t get_clock_rate(uint8_t id)
+{
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x30002;   // Get clock rate
+    buf.tag.u32[0] = id;
+    mbox_emit(buf);
+    return buf.tag.u32[1];
+}
+
+uint32_t set_clock_rate(uint8_t id, uint32_t hz)
+{
+    static mbox_buf(12) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x38002;   // Set clock rate
+    buf.tag.u32[0] = id;
+    buf.tag.u32[1] = hz;
+    buf.tag.u32[2] = 0;
+    mbox_emit(buf);
+    return buf.tag.u32[1];
+}
+
+uint32_t get_min_clock_rate(uint8_t id)
+{
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x30007;   // Get min clock rate
+    buf.tag.u32[0] = id;
+    mbox_emit(buf);
+    return buf.tag.u32[1];
+}
+
+uint32_t get_max_clock_rate()
+{
+    static mbox_buf(8) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x30004;   // Get max clock rate
+    buf.tag.u32[0] = 3;     // ARM
+    mbox_emit(buf);
+    return buf.tag.u32[1];
+}
+
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
     _set_domain_access((3 << 2) | 3);
@@ -286,6 +328,12 @@ void kernel_main()
 
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
+
+    for (uint8_t i = 1; i <= 9; i++) {
+        printf("Clock %u rate range %u - %u\n", i, get_min_clock_rate(i), get_max_clock_rate(i));
+        printf("Current clock rate %u\n", get_clock_rate(i));
+    }
+    set_clock_rate(3, (get_min_clock_rate(3) + get_max_clock_rate(3)) / 2);
 
     uspios_init();
 
