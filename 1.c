@@ -317,8 +317,11 @@ void kernel_main()
 
     uint32_t buf_p = (uint32_t)buf;
     buf_p = (buf_p >> 20) << 20;
+    // Region attributes: B4-12
+    // Descriptor: B4-27
+    // AP = (3 bits << 12), C = 8, B = 4
     for (uint32_t i = 0; i < 4; i++)
-        mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 4);
+        mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 12);
     _flush_mmu_table();
 
     DMB();
