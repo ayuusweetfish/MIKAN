@@ -9,8 +9,8 @@
 #define WIN_H   512
 
 #define FPS     60
-#define TEX_W   512
-#define TEX_H   512
+#define TEX_W   256
+#define TEX_H   256
 
 static GLFWwindow *window; 
 
@@ -170,6 +170,10 @@ int main()
     glBufferData(GL_ARRAY_BUFFER,
         24 * sizeof(float), vertices, GL_STREAM_DRAW);
 
+    for (int i = 0; i < TEX_H; i++)
+    for (int j = 0; j < TEX_W; j++)
+        buf[(i * TEX_W + j) * 4 + 3] = 255;
+
     // -- Event/render loop --
 
     init();
@@ -199,27 +203,49 @@ int main()
     return 0;
 }
 
+inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+{
+    *((uint32_t *)buf + y * TEX_W + x) = r | (g << 8) | (b << 16);
+}
+
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI  3.1415926535897932384626433832795
+#endif
+
+static int p[5][2];
+static int T = 0;
+
+static inline void recal_p()
+{
+    float phase = T * M_PI / 240;
+    float r = 32 * (1.5 + sinf(phase * 1.96));
+    float x = r * cosf(phase), y = r * sinf(phase);
+    p[1][0] = p[0][0] + x; p[1][1] = p[0][1] + y;
+    p[2][0] = p[0][0] - y; p[2][1] = p[0][1] + x;
+    p[3][0] = p[0][0] - x; p[3][1] = p[0][1] - y;
+    p[4][0] = p[0][0] + y; p[4][1] = p[0][1] - x;
+}
+
 void init()
 {
     puts("^ ^  Hello, world!");
+    p[0][0] = p[0][1] = 128;
 }
-
-static int x0 = 256, y0 = 256;
 
 void update()
 {
-    for (int i = 0; i < TEX_H; i++)
-    for (int j = 0; j < TEX_W; j++) {
-        buf[(i * TEX_W + j) * 4] = 
-        buf[(i * TEX_W + j) * 4 + 1] = 
-        buf[(i * TEX_W + j) * 4 + 2] = 192;
-        buf[(i * TEX_W + j) * 4 + 3] = 255;
+    T++;
+    recal_p();
+
+    int x0, y0;
+    for (int i = 0; i <= 4; i++)
+    for (int x = -8; x <= 8; x++) if ((x0 = p[i][0] + x) >= 0 && x0 < 256)
+    for (int y = 8; y >= -8; y--) if ((y0 = p[i][1] + y) >= 0 && y0 < 256) {
+        if (x * x + y * y > (int)(8.5 * 8.5)) continue;
+        if (y0 > 0) pix(x0, y0 - 1, 128, 96, 32);
+        if (x0 < 255) pix(x0 + 1, y0, 128, 96, 32);
+        pix(x0, y0, 240, 192, 108);
     }
-    for (int x = x0 - 16; x <= x0 + 16; x++) if (x >= 0 && x < TEX_W)
-    for (int y = y0 - 16; y <= y0 + 16; y++) if (y >= 0 && y < TEX_H) {
-        buf[(y * TEX_W + x) * 4] =
-        buf[(y * TEX_W + x) * 4 + 1] = 128;
-        buf[(y * TEX_W + x) * 4 + 2] = 255;
-    }
-    x0 = (x0 + 17) % (TEX_W + 32) - 16;
 }
