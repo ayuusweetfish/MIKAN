@@ -114,6 +114,15 @@ static inline void draw_matrix()
             drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0],
             drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1],
             drop_type);
+
+    for (int i = 0; i < 4; i++)     // Preview index
+    for (int j = 0; j < 4; j++) {   // Mino index
+        uint8_t t = drop_next[(drop_pointer + i) % 14];
+        draw_mino(
+            MATRIX_HV - 1 - i * 3 - TETRO[t].bbsize + TETRO[t].mino[0][j][0],
+            MATRIX_W + 1 + TETRO[t].mino[0][j][1],
+            t);
+    }
 }
 
 void *draw()

@@ -31,6 +31,9 @@ extern tetro_type TETRO[7];
 
 extern uint8_t matrix[MATRIX_H][MATRIX_W];
 
+extern uint8_t drop_next[14];
+extern uint8_t drop_pointer;
+
 extern uint8_t drop_type;
 extern uint8_t drop_ori;
 extern uint8_t drop_pos[2];     // {row, column}
@@ -41,6 +44,7 @@ extern uint8_t epld_countdown;
 
 void tetro_init();
 
+void tetris_refill(uint8_t start);
 void tetris_spawn();
 bool tetris_check();
 void tetris_lockdown();

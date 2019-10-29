@@ -83,6 +83,9 @@ tetro_type TETRO[7] = {
 
 uint8_t matrix[MATRIX_H][MATRIX_W];
 
+uint8_t drop_next[14];
+uint8_t drop_pointer;
+
 uint8_t drop_type;
 uint8_t drop_ori;
 uint8_t drop_pos[2];
@@ -114,12 +117,35 @@ void tetro_init()
         }*/
 #undef m
     }
+
+    tetris_refill(0);
+    tetris_refill(7);
+    drop_pointer = 0;
 };
+
+static inline uint32_t mrand()
+{
+    static uint32_t seed = 20191029;
+    return (seed = ((seed * 1103515245) + 12345) & 0x7fffffff);
+}
+
+void tetris_refill(uint8_t start)
+{
+    for (uint8_t i = 0; i < 7; i++) drop_next[start + i] = i;
+    for (uint8_t i = 1; i < 7; i++) {
+        uint8_t j = mrand() % (i + 1);
+        uint8_t t = drop_next[start + j];
+        drop_next[start + j] = drop_next[start + i];
+        drop_next[start + i] = t;
+    }
+}
 
 void tetris_spawn()
 {
-    static uint8_t s = 0;
-    drop_type = (s++) % 7;
+    drop_type = drop_next[drop_pointer];
+    if ((drop_pointer = (drop_pointer + 1) % 14) % 7 == 0)
+        tetris_refill(7 - drop_pointer);
+
     drop_ori = 0;
     drop_pos[0] = MATRIX_HV + TETRO[drop_type].spawn;
     drop_pos[1] = (MATRIX_W - TETRO[drop_type].bbsize) / 2;
