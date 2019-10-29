@@ -1,4 +1,5 @@
 #include "api.h"
+#include "tetris.h"
 
 #include <math.h>
 #include <string.h>
@@ -10,8 +11,6 @@
 #define M_SQRT1_2   0.7071067811865476
 #endif
 
-#define MATRIX_W    10
-#define MATRIX_H    30
 #define MATRIX_HV   20
 #define MINO_W      12
 
@@ -23,16 +22,6 @@
 static uint8_t buf[256][256][3];
 
 static uint32_t T = 0;
-
-static uint8_t matrix[MATRIX_H][MATRIX_W];
-#define MINO_NONE   255
-#define MINO_O      0
-#define MINO_I      1
-#define MINO_T      2
-#define MINO_L      3
-#define MINO_J      4
-#define MINO_S      5
-#define MINO_Z      6
 
 static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -55,6 +44,7 @@ static inline void linev(
 
 void init()
 {
+    tetro_init();
     memset(matrix, MINO_NONE, sizeof matrix);
     for (int i = 0; i < 7; i++) matrix[0][i] = i;
 }
