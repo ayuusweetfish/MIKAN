@@ -86,7 +86,10 @@ uint8_t matrix[MATRIX_H][MATRIX_W];
 uint8_t drop_type;
 uint8_t drop_ori;
 uint8_t drop_pos[2];
-uint16_t drop_counter;
+uint8_t drop_countdown;
+uint8_t drop_lowest;
+uint8_t epld_counter;
+uint8_t epld_countdown;
 
 void tetro_init()
 {
@@ -120,6 +123,8 @@ void tetris_spawn()
     drop_ori = 0;
     drop_pos[0] = MATRIX_HV + TETRO[drop_type].spawn;
     drop_pos[1] = (MATRIX_W - TETRO[drop_type].bbsize) / 2;
+    drop_lowest = drop_pos[0] + 1;
+    epld_countdown = 0;
     tetris_drop();
 }
 
@@ -151,7 +156,12 @@ bool tetris_drop()
         drop_pos[0]++;
         return false;
     }
-    drop_counter = 30;
+    drop_countdown = 30;
+    if (drop_pos[0] < drop_lowest) {
+        drop_lowest = drop_pos[0];
+        epld_counter = 15;
+        epld_countdown = 30;
+    }
     return true;
 }
 
@@ -161,6 +171,10 @@ bool tetris_hor(int8_t dx)
     if (!tetris_check()) {
         drop_pos[1] -= dx;
         return false;
+    }
+    if (epld_counter > 0) {
+        epld_counter--;
+        epld_countdown = 30;
     }
     return true;
 }
@@ -177,7 +191,13 @@ bool tetris_rotate(int8_t dir)
         int8_t dy = (int8_t)r[od][i][1] - r[drop_ori][i][1];
         drop_pos[0] = ox + dx;
         drop_pos[1] = oy + dy;
-        if (tetris_check()) return true;
+        if (tetris_check()) {
+            if (epld_counter > 0) {
+                epld_counter--;
+                epld_countdown = 30;
+            }
+            return true;
+        }
 #undef m
     }
     drop_ori = od;
@@ -186,11 +206,19 @@ bool tetris_rotate(int8_t dir)
     return false;
 }
 
+void tetris_harddrop()
+{
+    while (tetris_drop()) { }
+    drop_countdown = 1;   // Lock down will happen at the following tick()
+}
+
 uint8_t tetris_tick()
 {
-    if (--drop_counter == 0) {
+    if (drop_countdown != 0) drop_countdown--;
+    if (epld_countdown != 0) epld_countdown--;
+    if (drop_countdown == 0) {
         if (tetris_drop()) {
-        } else {
+        } else if (epld_countdown == 0) {
             if (!tetris_check()) return TETRIS_GAMEOVER;
             tetris_lockdown();
             return TETRIS_LOCKDOWN;
