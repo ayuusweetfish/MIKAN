@@ -73,9 +73,22 @@ void *draw()
     for (int x = -8; x <= 8; x++) if ((x0 = p[i][0] + x) >= 0 && x0 < 256)
     for (int y = 8; y >= -8; y--) if ((y0 = p[i][1] + y) >= 0 && y0 < 256) {
         if (x * x + y * y > (int)(8.5f * 8.5f)) continue;
-        if (y0 > 0) pix(x0, y0 - 1, 128, 96, 32);
-        if (x0 < 255) pix(x0 + 1, y0, 128, 96, 32);
-        pix(x0, y0, 240, 192, 108);
+
+        static const uint32_t button[5] = {
+            0, BUTTON_TRI, BUTTON_CIR, BUTTON_CRO, BUTTON_SQR
+        };
+        uint8_t r1 = 240, g1 = 192, b1 = 108;
+        uint8_t r2 = 128, g2 = 96, b2 = 32;
+        if (i == 0) {
+            g1 = 144;
+            g2 = 48;
+        } else if (buttons() & button[i]) {
+            r1 = 192, g1 = 240;
+            r2 = 96, g2 = 128;
+        }
+        if (y0 > 0) pix(x0, y0 - 1, r2, g2, b2);
+        if (x0 < 255) pix(x0 + 1, y0, r2, g2, b2);
+        pix(x0, y0, r1, g1, b1);
     }
 
     return (uint8_t *)buf;

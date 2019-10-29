@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "api.h"
@@ -218,5 +219,17 @@ uint32_t buttons()
         (glfwGetKey(window, GLFW_KEY_UP) << 0) |
         (glfwGetKey(window, GLFW_KEY_DOWN) << 1) |
         (glfwGetKey(window, GLFW_KEY_LEFT) << 2) |
-        (glfwGetKey(window, GLFW_KEY_RIGHT) << 3);
+        (glfwGetKey(window, GLFW_KEY_RIGHT) << 3) |
+        (glfwGetKey(window, GLFW_KEY_X) << 4) |
+        (glfwGetKey(window, GLFW_KEY_C) << 5) |
+        (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) << 6) |
+        (glfwGetKey(window, GLFW_KEY_Z) << 7) |
+        (glfwGetKey(window, GLFW_KEY_W) << 0) |     // Alternative set of keys
+        (glfwGetKey(window, GLFW_KEY_S) << 1) |
+        (glfwGetKey(window, GLFW_KEY_A) << 2) |
+        (glfwGetKey(window, GLFW_KEY_D) << 3) |
+        (glfwGetKey(window, GLFW_KEY_K) << 4) |
+        (glfwGetKey(window, GLFW_KEY_J) << 5) |
+        (glfwGetKey(window, GLFW_KEY_L) << 6) |
+        (glfwGetKey(window, GLFW_KEY_I) << 7);
 }
