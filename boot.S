@@ -15,7 +15,7 @@ _start:
 
 _addr_reset:        .word   _reset
 _addr_int_uinstr:   .word   _int_uinstr
-_addr_int_swi:      .word   _int_swi
+_addr_int_swi:      .word   _int_swi_stub
 _addr_int_pfabort:  .word   _int_pfabort
 _addr_int_dabort:   .word   _int_dabort
 _addr_int_uhandler: .word   _int_uhandler
@@ -32,6 +32,11 @@ _int_fiq:
 #define MEM_KERNEL_END          (MEM_KERNEL_START + KERNEL_MAX_SIZE)
 #define MEM_ABORT_STACK         (MEM_KERNEL_END + EXCEPTION_STACK_SIZE)         // expands down
 #define MEM_IRQ_STACK           (MEM_ABORT_STACK + EXCEPTION_STACK_SIZE)        // expands down
+
+_int_swi_stub:
+    stmfd   sp!, {ip, lr}
+    bl      _int_swi
+    ldmfd   sp!, {ip, pc}^
 
 _int_irq_stub:
     ldr     sp, =#MEM_IRQ_STACK

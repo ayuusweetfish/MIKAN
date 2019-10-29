@@ -31,7 +31,7 @@ struct fb {
 };
 
 struct fb f;
-static uint8_t gbuf[512 * 512 * 8];
+static uint8_t gbuf[256 * 256 * 8];
 
 void wait(uint32_t ticks)
 {
@@ -144,19 +144,32 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
     while (1) { murmur(3); wait(1000000); }
 }
 
-void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
+typedef void (*update_func_t)();
+typedef void *(*draw_func_t)();
+
+static update_func_t _update = NULL;
+static draw_func_t _draw = NULL;
+
+uint32_t _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
 {
     _set_domain_access((3 << 2) | 3);
     DMB(); DSB();
-    printf("SVC %d\n", r0);
-    DMB(); DSB();
-    if (r0 == 42) {
+    //printf("SVC %d\n", r0);
+    //DMB(); DSB();
+    uint32_t ret = 0;
+    if (r0 == 1) {
+        _update = (update_func_t)r1;
+        _draw = (draw_func_t)r2;
+    } else if (r0 == 2) {
+        if (get_time() & 1048576) ret = 1;
+    } else if (r0 == 42) {
         *GPCLR1 = r1;
     } else if (r0 == 43) {
         *GPSET1 = r1;
     }
     DMB(); DSB();
     _set_domain_access((1 << 2) | 3);
+    return ret;
 }
 
 void __attribute__((interrupt("ABORT"))) _int_pfabort()
@@ -256,6 +269,31 @@ void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
     memset((void *)program->vaddr + program->filesz, 0, empty_len);
 }
 
+void timer3_handler(void *_unused)
+{
+    _set_domain_access((3 << 2) | 3);
+
+    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
+    uint32_t t = *SYSTMR_CLO;
+    t = t - t % 16667 + 16667;
+    *SYSTMR_C3 = t;
+
+    // TODO: Do not run these with high privileges!
+    if (_update) (*_update)();
+    if (_draw) {
+        uint8_t *ret = (uint8_t *)(*_draw)();
+        uint8_t *buf = (uint8_t *)(f.buf);
+        for (uint32_t y = 0; y < f.pheight; y++)
+        for (uint32_t x = 0; x < f.pwidth; x++) {
+            buf[y * f.pitch + x * 3 + 2] = ret[0];
+            buf[y * f.pitch + x * 3 + 1] = ret[1];
+            buf[y * f.pitch + x * 3 + 0] = ret[2];
+            ret += 3;
+        }
+    }
+    _set_domain_access((1 << 2) | 3);
+}
+
 void kernel_main()
 {
     DSB();
@@ -263,6 +301,16 @@ void kernel_main()
     DMB();
 
     _enable_int();
+
+    // 60 FPS tick
+    DSB();
+    *SYSTMR_CS = 8;
+    *SYSTMR_C3 = 3000000;
+    DMB(); DSB();
+    *INT_IRQENAB1 = 8;
+    DMB(); DSB();
+    set_irq_handler(3, timer3_handler, NULL);
+    DMB();
 
     // Prepare TLB
     for (uint32_t i = 0; i < 4096; i++) {
@@ -278,10 +326,10 @@ void kernel_main()
 
     // Set up framebuffer
     static struct fb f_volatile __attribute__((section(".bss.dmem"), aligned(16))) = { 0 };
-    f_volatile.pwidth = 512;
-    f_volatile.pheight = 512;
-    f_volatile.vwidth = 512;
-    f_volatile.vheight = 512 * 2;
+    f_volatile.pwidth = 256;
+    f_volatile.pheight = 256;
+    f_volatile.vwidth = 256;
+    f_volatile.vheight = 256 * 2;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);

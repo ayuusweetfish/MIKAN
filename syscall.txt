@@ -1,0 +1,5 @@
+idx #arg #ret desc
+1   2    0    Register update/draw loop
+2   0    1    Get buttons
+42  0    0    Turn on ACT LED
+43  0    0    Turn off ACT LED

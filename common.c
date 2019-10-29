@@ -42,6 +42,8 @@ void set_irq_handler(uint8_t source, irq_handler f, void *arg)
 
 void /*__attribute__((interrupt("IRQ")))*/ _int_irq()
 {
+    _set_domain_access((3 << 2) | 3);
+
     DMB(); DSB();
     uint32_t lr;
     __asm__ __volatile__ ("mov %0, r0" : "=r" (lr));
@@ -78,4 +80,6 @@ void /*__attribute__((interrupt("IRQ")))*/ _int_irq()
     DMB(); DSB();
     if (handlers[source]) (*handlers[source])(args[source]);
     DMB(); DSB();
+
+    _set_domain_access((1 << 2) | 3);
 }
