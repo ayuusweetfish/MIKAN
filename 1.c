@@ -150,6 +150,21 @@ typedef void *(*draw_func_t)();
 static update_func_t _update = NULL;
 static draw_func_t _draw = NULL;
 
+#define BUTTON_UP       (1 << 0)
+#define BUTTON_DOWN     (1 << 1)
+#define BUTTON_LEFT     (1 << 2)
+#define BUTTON_RIGHT    (1 << 3)
+#define BUTTON_A        (1 << 4)
+#define BUTTON_B        (1 << 5)
+#define BUTTON_X        (1 << 6)
+#define BUTTON_Y        (1 << 7)
+#define BUTTON_CRO      BUTTON_A
+#define BUTTON_CIR      BUTTON_B
+#define BUTTON_SQR      BUTTON_X
+#define BUTTON_TRI      BUTTON_Y
+
+static uint32_t _buttons = 0;
+
 uint32_t _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
 {
     _set_domain_access((3 << 2) | 3);
@@ -161,7 +176,7 @@ uint32_t _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
         _update = (update_func_t)r1;
         _draw = (draw_func_t)r2;
     } else if (r0 == 2) {
-        if (get_time() & 1048576) ret = 1;
+        ret = _buttons;
     } else if (r0 == 42) {
         *GPCLR1 = r1;
     } else if (r0 == 43) {
@@ -245,6 +260,22 @@ void status_handler(unsigned int index, const USPiGamePadState *state)
 {
     const uint8_t *report = state->report;
     uint32_t report_len = state->report_len;
+
+    uint32_t btns = 0;
+    uint8_t dpad = report[5] & 15, act = report[5] >> 4;
+    if (dpad == 7 || dpad <= 1) btns |= BUTTON_UP;
+    if (dpad >= 1 && dpad <= 3) btns |= BUTTON_RIGHT;
+    if (dpad >= 3 && dpad <= 5) btns |= BUTTON_DOWN;
+    if (dpad >= 5 && dpad <= 7) btns |= BUTTON_LEFT;
+    if (act & 1) btns |= BUTTON_X;
+    if (act & 2) btns |= BUTTON_A;
+    if (act & 4) btns |= BUTTON_B;
+    if (act & 8) btns |= BUTTON_Y;
+
+    _buttons = btns;
+    //printf("%d\r", btns);
+    return; // No further
+
     for (int i = 0; i < report_len; i++) printf(" %02x", report[i]);
     _putchar('\r');
     _putchar('\b');
@@ -376,14 +407,9 @@ void kernel_main()
     printf("MAC address:\n");
     DebugHexdump(mac_addr, 6, NULL);
 
-/*
     USPiInitialize();
-    printf("!!!!!!!\n");
-
     uint32_t count = USPiGamePadAvailable();
-    printf("%d gamepad(s)\n", count);
-    USPiGamePadRegisterStatusHandler(status_handler);
-*/
+    if (count) USPiGamePadRegisterStatusHandler(status_handler);
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
