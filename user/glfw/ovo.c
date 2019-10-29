@@ -1,6 +1,7 @@
 #include "api.h"
 
 #include <math.h>
+#include <string.h>
 
 #ifndef M_PI
 #define M_PI  3.1415926535897932384626433832795
@@ -18,7 +19,7 @@ static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 
 static float p0[2];
 static float v0[2];
-static int p[5][2];
+static int p[5][2], q[5][2];
 static int T = 0;
 
 static inline void recal_p()
@@ -37,6 +38,8 @@ static inline void recal_p()
 void init()
 {
     p0[0] = p0[1] = 128;
+    recal_p();
+    memcpy(q, p, sizeof q);
 }
 
 void update()
@@ -64,31 +67,43 @@ void update()
     p0[1] += v0[1];
 }
 
-void *draw()
+static inline void blit(uint8_t i)
 {
-    recal_p();
-
     int x0, y0;
-    for (int i = 0; i <= 4; i++)
-    for (int x = -8; x <= 8; x++) if ((x0 = p[i][0] + x) >= 0 && x0 < 256)
-    for (int y = 8; y >= -8; y--) if ((y0 = p[i][1] + y) >= 0 && y0 < 256) {
+    for (int x = -8; x <= 8; x++) if ((x0 = q[i][0] + x) >= 0 && x0 < 256)
+    for (int y = 8; y >= -8; y--) if ((y0 = q[i][1] + y) >= 0 && y0 < 256) {
         if (x * x + y * y > (int)(8.5f * 8.5f)) continue;
 
-        static const uint32_t button[5] = {
-            0, BUTTON_TRI, BUTTON_SQR, BUTTON_CRO, BUTTON_CIR
+        static const uint32_t button[4] = {
+            BUTTON_TRI, BUTTON_SQR, BUTTON_CRO, BUTTON_CIR
         };
         uint8_t r1 = 240, g1 = 192, b1 = 108;
         uint8_t r2 = 128, g2 = 96, b2 = 32;
         if (i == 0) {
             g1 = 144;
             g2 = 48;
-        } else if (buttons() & button[i]) {
+        } else if (buttons() & button[i - 1]) {
             r1 = 192, g1 = 240;
             r2 = 96, g2 = 128;
         }
         if (y0 > 0) pix(x0, y0 - 1, r2, g2, b2);
         if (x0 < 255) pix(x0 + 1, y0, r2, g2, b2);
         pix(x0, y0, r1, g1, b1);
+    }
+}
+
+void *draw()
+{
+    recal_p();
+
+    for (int i = 0; i <= 4; i++) {
+        int sgnx = (p[i][0] < q[i][0] ? -1 : +1);
+        int sgny = (p[i][1] < q[i][1] ? -1 : +1);
+        do {
+            if (p[i][0] != q[i][0]) q[i][0] += sgnx;
+            if (p[i][1] != q[i][1]) q[i][1] += sgny;
+            blit(i);
+        } while (p[i][0] != q[i][0] || p[i][1] != q[i][1]);
     }
 
     return (uint8_t *)buf;
