@@ -17,29 +17,6 @@ void mmu_table_section(uint32_t *table, uint32_t vaddr, uint32_t paddr, uint32_t
     *table_addr = table_val;
 }
 
-void send_mail(uint32_t data, uint8_t channel)
-{
-    DMB(); DSB();
-    while ((*MAIL0_STATUS) & (1u << 31)) { }
-    *MAIL0_WRITE = (data << 4) | (channel & 15);
-    DMB(); DSB();
-}
-
-uint32_t recv_mail(uint8_t channel)
-{
-    DMB(); DSB();
-    do {
-        while ((*MAIL0_STATUS) & (1u << 30)) { }
-        uint32_t data = *MAIL0_READ;
-        if ((data & 15) == channel) {
-            DMB();
-            return (data >> 4);
-        //} else {
-        //    printf("Incorrect channel (expected %u got %u)\n", channel, data & 15);
-        }
-    } while (1);
-}
-
 struct fb {
     uint32_t pwidth;
     uint32_t pheight;
@@ -167,14 +144,11 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
     while (1) { murmur(3); wait(1000000); }
 }
 
-void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1)
+void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
 {
-    //uint32_t lr;
-    //__asm__ __volatile__ ("mov %0, lr" : "=r"(lr) : :);
-    //_set_domain_access((3 << 2) | 3);
+    _set_domain_access((3 << 2) | 3);
     DMB(); DSB();
     printf("SVC %d\n", r0);
-    //printf("LR = %x\n", lr);
     DMB(); DSB();
     if (r0 == 42) {
         *GPCLR1 = r1;
@@ -182,7 +156,7 @@ void __attribute__((interrupt("SWI"))) _int_swi(uint32_t r0, uint32_t r1)
         *GPSET1 = r1;
     }
     DMB(); DSB();
-    //_set_domain_access((1 << 2) | 3);
+    _set_domain_access((1 << 2) | 3);
 }
 
 void __attribute__((interrupt("ABORT"))) _int_pfabort()
@@ -246,14 +220,6 @@ void draw()
     _putchar('0' + frm * 1000000 / t % 10);
 }
 
-void timer3_handler(void *_unused)
-{
-    do *SYSTMR_CS = 8; while (*SYSTMR_CS & 8);
-    uint32_t t = *SYSTMR_CLO;
-    t = t - t % 500000 + 500000;
-    *SYSTMR_C3 = t;
-}
-
 void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
 {
     _putchar('>');
@@ -298,21 +264,10 @@ void kernel_main()
 
     _enable_int();
 
-    DSB();
-    *SYSTMR_C3 = 5000000;
-    *SYSTMR_CS = 12;
-    DMB();
-
-    DSB();
-    set_irq_handler(3, timer3_handler, NULL);
-    DMB();
-
     // Prepare TLB
-    // Enable MMU!
     for (uint32_t i = 0; i < 4096; i++) {
         mmu_table_section(mm_sys, i << 20, i << 20, (i < 1 ? (8 | 4) : 0));
     }
-    // TODO: Make MMU work with USB again
     // Disable buffering/caching on .bss.dmem(qwq) sections
     uint32_t dmem_start = ((uint32_t)&_bss_dmem_begin) >> 20;
     uint32_t dmem_end = ((uint32_t)&_bss_dmem_end - 1) >> 20;
@@ -384,11 +339,11 @@ void kernel_main()
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
-    // Doing so will result in a permission fault later in user mode
     memcpy(mm_user, mm_sys, sizeof mm_user);
     mmu_table_section(mm_user, 0x20000000, 0x20000000, (1 << 5) | (1 << 10));
     mmu_table_section(mm_user, 0x20200000, 0x20200000, (1 << 5) | (1 << 10));
-    for (uint32_t i = 0x80000000; i < 0xa0000000; i += 0x100000) {
+    // Open up enough space for user code
+    for (uint32_t i = 0x80000000; i < 0x90000000; i += 0x100000) {
         mmu_table_section(mm_user, i, i - 0x80000000 + 0x1000000, 8 | 4);
     }
     _enable_mmu((uint32_t)mm_user);
@@ -397,36 +352,10 @@ void kernel_main()
 
     load_elf(user_c_a_out);
     const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
-    printf("%x\n", (uint32_t)ehdr->entry);
-    printf("%x\n", *(uint32_t *)ehdr->entry);
-    printf("%d\n", _get_mode());
 
     _enter_user_mode();
-/*
-    printf("%d\n", _get_mode());
-    while (1) {
-        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        //*GPCLR1 = (1 << 15);
-        syscall(42, 1 << 15);
-        print("QAQ\n");
-        for (uint32_t i = 0; i < 30000000; i++) __asm__ __volatile__ ("");
-        //*GPSET1 = (1 << 15);
-        syscall(43, 1 << 15);
-        print("QuQ\n");
-        // Trigger a data abort after 5 blinks
-        static uint32_t count = 0;
-        if (++count >= 5) *GPSET1 = (1 << 15);
-    }
-    while (1) { }
-*/
-
     _enter_user_code(ehdr->entry);
 
     // Should not reach here
-    while (1) {
-        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
-        *GPCLR1 = (1 << 15);
-        for (uint32_t i = 0; i < 6000000; i++) __asm__ __volatile__ ("");
-        *GPSET1 = (1 << 15);
-    }
+    while (1) { }
 }
