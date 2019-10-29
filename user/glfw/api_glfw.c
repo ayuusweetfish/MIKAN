@@ -29,7 +29,7 @@ static float vertices[6][4] = {
     {-1, 1, 0, 1},
 };
 
-static uint32_t buf[TEX_W * TEX_H];
+static uint8_t buf[TEX_W * TEX_H * 3];
 
 static void glfw_err_callback(int error, const char *desc)
 {
@@ -174,10 +174,6 @@ int main()
     glBufferData(GL_ARRAY_BUFFER,
         24 * sizeof(float), vertices, GL_STREAM_DRAW);
 
-    for (int i = 0; i < TEX_H; i++)
-    for (int j = 0; j < TEX_W; j++)
-        buf[i * TEX_W + j] = 0xffffff;
-
     // -- Event/render loop --
 
     init();
@@ -201,8 +197,8 @@ int main()
         void *nbuf = draw();
         memcpy(buf, nbuf, sizeof buf);
 
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TEX_W, TEX_H,
-            0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, buf);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, TEX_W, TEX_H,
+            0, GL_RGB, GL_UNSIGNED_BYTE, buf);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);

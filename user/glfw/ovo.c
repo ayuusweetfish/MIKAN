@@ -10,11 +10,13 @@
 #define M_SQRT1_2   0.7071067811865476
 #endif
 
-static uint32_t buf[256][256];
+static uint8_t buf[256][256][3];
 
 static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
-    buf[y][x] = (r << 16) | (g << 8) | b;
+    buf[y][x][0] = r;
+    buf[y][x][1] = g;
+    buf[y][x][2] = b;
 }
 
 static float p0[2];
@@ -40,6 +42,7 @@ void init()
     p0[0] = p0[1] = 128;
     recal_p();
     memcpy(q, p, sizeof q);
+    memset(buf, 0, sizeof buf);
 }
 
 void update()
