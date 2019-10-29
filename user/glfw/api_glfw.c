@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -16,6 +17,8 @@
 #define TEX_H   256
 
 static GLFWwindow *window; 
+static bool buttons_updated = false;
+static uint32_t last_buttons;
 
 static float vertices[6][4] = {
     {-1, -1, 0, 0},
@@ -204,6 +207,7 @@ int main()
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+        buttons_updated = false;
     }
 
     return 0;
@@ -215,21 +219,37 @@ void register_loop(update_func_t update, draw_func_t draw)
 
 uint32_t buttons()
 {
-    return
+    if (buttons_updated) return last_buttons;
+
+    uint32_t ret =
         (glfwGetKey(window, GLFW_KEY_UP) << 0) |
         (glfwGetKey(window, GLFW_KEY_DOWN) << 1) |
         (glfwGetKey(window, GLFW_KEY_LEFT) << 2) |
         (glfwGetKey(window, GLFW_KEY_RIGHT) << 3) |
-        (glfwGetKey(window, GLFW_KEY_X) << 4) |
-        (glfwGetKey(window, GLFW_KEY_C) << 5) |
-        (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) << 6) |
-        (glfwGetKey(window, GLFW_KEY_Z) << 7) |
+        (glfwGetKey(window, GLFW_KEY_C) << 4) |
+        (glfwGetKey(window, GLFW_KEY_X) << 5) |
+        (glfwGetKey(window, GLFW_KEY_Z) << 6) |
+        (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) << 7) |
         (glfwGetKey(window, GLFW_KEY_W) << 0) |     // Alternative set of keys
         (glfwGetKey(window, GLFW_KEY_S) << 1) |
         (glfwGetKey(window, GLFW_KEY_A) << 2) |
         (glfwGetKey(window, GLFW_KEY_D) << 3) |
         (glfwGetKey(window, GLFW_KEY_K) << 4) |
-        (glfwGetKey(window, GLFW_KEY_J) << 5) |
-        (glfwGetKey(window, GLFW_KEY_L) << 6) |
+        (glfwGetKey(window, GLFW_KEY_L) << 5) |
+        (glfwGetKey(window, GLFW_KEY_J) << 6) |
         (glfwGetKey(window, GLFW_KEY_I) << 7);
+    if (glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
+        GLFWgamepadstate state;
+        if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) ret |=
+            (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_UP] << 0) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_DOWN] << 1) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_LEFT] << 2) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_DPAD_RIGHT] << 3) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_A] << 4) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_B] << 5) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_X] << 6) |
+            (state.buttons[GLFW_GAMEPAD_BUTTON_Y] << 7);
+    }
+    buttons_updated = true;
+    return (last_buttons = ret);
 }

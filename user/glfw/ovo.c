@@ -75,7 +75,7 @@ void *draw()
         if (x * x + y * y > (int)(8.5f * 8.5f)) continue;
 
         static const uint32_t button[5] = {
-            0, BUTTON_TRI, BUTTON_CIR, BUTTON_CRO, BUTTON_SQR
+            0, BUTTON_TRI, BUTTON_SQR, BUTTON_CRO, BUTTON_CIR
         };
         uint8_t r1 = 240, g1 = 192, b1 = 108;
         uint8_t r2 = 128, g2 = 96, b2 = 32;
