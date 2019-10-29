@@ -39,8 +39,15 @@ extern uint16_t drop_counter;
 void tetro_init();
 
 void tetris_spawn();
+bool tetris_check();
+void tetris_lockdown();
 bool tetris_drop();
+bool tetris_hor(int8_t dx);
 
-void tetris_tick();
+#define TETRIS_NONE     0
+#define TETRIS_LOCKDOWN 1
+#define TETRIS_GAMEOVER 2
+
+uint8_t tetris_tick();
 
 #endif

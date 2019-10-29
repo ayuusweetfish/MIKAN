@@ -53,7 +53,18 @@ void init()
 void update()
 {
     T++;
-    tetris_tick();
+
+    static uint32_t b1 = 0;
+    uint32_t b0 = buttons();
+    if ((b0 & BUTTON_LEFT) && !(b1 & BUTTON_LEFT)) tetris_hor(-1);
+    if ((b0 & BUTTON_RIGHT) && !(b1 & BUTTON_RIGHT)) tetris_hor(+1);
+    if (b0 & BUTTON_DOWN) tetris_drop();
+    b1 = b0;
+
+    uint8_t action = tetris_tick();
+    if (action == TETRIS_LOCKDOWN) {
+        tetris_spawn();
+    }
 }
 
 static const uint8_t MINO_COLOURS[7][3] = {

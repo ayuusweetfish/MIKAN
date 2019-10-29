@@ -118,29 +118,60 @@ void tetris_spawn()
     drop_ori = 0;
     drop_pos[0] = MATRIX_HV + TETRO[drop_type].spawn;
     drop_pos[1] = (MATRIX_W - TETRO[drop_type].bbsize) / 2;
-    drop_counter = 30;
+    tetris_drop();
+}
+
+bool tetris_check()
+{
+    for (uint8_t i = 0; i < 4; i++) {
+        uint8_t r = drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0];
+        uint8_t c = drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1];
+        if (r >= MATRIX_H || c >= MATRIX_W || matrix[r][c] != MINO_NONE)
+            return false;
+    }
+    return true;
+}
+
+void tetris_lockdown()
+{
+    for (uint8_t i = 0; i < 4; i++) {
+        uint8_t r = drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0];
+        uint8_t c = drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1];
+        if (r < MATRIX_H || c < MATRIX_W) matrix[r][c] = drop_type;
+    }
+    drop_type = MINO_NONE;
 }
 
 bool tetris_drop()
 {
     drop_pos[0]--;
-    for (uint8_t i = 0; i < 4; i++) {
-        uint8_t r = drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0];
-        uint8_t c = drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1];
-        if (r >= MATRIX_H || c >= MATRIX_W || matrix[r][c] != MINO_NONE) {
-            drop_pos[0]++;
-            return false;
-        }
+    if (!tetris_check()) {
+        drop_pos[0]++;
+        return false;
+    }
+    drop_counter = 30;
+    return true;
+}
+
+bool tetris_hor(int8_t dx)
+{
+    drop_pos[1] += dx;
+    if (!tetris_check()) {
+        drop_pos[1] -= dx;
+        return false;
     }
     return true;
 }
 
-void tetris_tick()
+uint8_t tetris_tick()
 {
     if (--drop_counter == 0) {
         if (tetris_drop()) {
-            drop_counter = 30;
         } else {
+            if (!tetris_check()) return TETRIS_GAMEOVER;
+            tetris_lockdown();
+            return TETRIS_LOCKDOWN;
         }
     }
+    return TETRIS_NONE;
 }
