@@ -11,7 +11,6 @@
 #define M_SQRT1_2   0.7071067811865476
 #endif
 
-#define MATRIX_HV   20
 #define MINO_W      12
 
 #define MATRIX_X1   ((256 - MATRIX_W * MINO_W) / 2)
@@ -42,16 +41,19 @@ static inline void linev(
     for (; y1 <= y2; y1++) pix(x, y1, r, g, b);
 }
 
+
 void init()
 {
     tetro_init();
     memset(matrix, MINO_NONE, sizeof matrix);
     for (int i = 0; i < 7; i++) matrix[0][i] = i;
+    tetris_spawn();
 }
 
 void update()
 {
     T++;
+    tetris_tick();
 }
 
 static const uint8_t MINO_COLOURS[7][3] = {
@@ -65,8 +67,11 @@ static const uint8_t MINO_COLOURS[7][3] = {
 };
 
 // Top-left corner
-static inline void draw_mino(uint8_t x, uint8_t y, uint8_t t)
+static inline void draw_mino(uint8_t row, uint8_t col, uint8_t t)
 {
+    if (row >= MATRIX_HV) return;
+    uint8_t x = MATRIX_X1 + col * MINO_W;
+    uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
     for (int j = 0; j < MINO_W; j++)
         pix(x + i, y + j,
@@ -85,11 +90,14 @@ static inline void draw_matrix()
     for (int i = 0; i < MATRIX_HV; i++)
     for (int j = 0; j < MATRIX_W; j++) {
         if (matrix[i][j] != MINO_NONE)
-            draw_mino(
-                MATRIX_X1 + j * MINO_W,
-                MATRIX_Y1 - (i + 1) * MINO_W,
-                matrix[i][j]);
+            draw_mino(i, j, matrix[i][j]);
     }
+
+    for (int i = 0; i < 4; i++)
+        draw_mino(
+            drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0],
+            drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1],
+            drop_type);
 }
 
 void *draw()

@@ -1,11 +1,10 @@
 #include "tetris.h"
 
-uint8_t matrix[MATRIX_H][MATRIX_W];
-
 tetro_type TETRO[7] = {
     {
         // O
         .bbsize = 2,
+        .spawn = 0,
         .mino = {{{0, 0}, {0, 1}, {1, 0}, {1, 1}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -16,6 +15,7 @@ tetro_type TETRO[7] = {
     }, {
         // I
         .bbsize = 4,
+        .spawn = -2,
         .mino = {{{2, 0}, {2, 1}, {2, 2}, {2, 3}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -26,6 +26,7 @@ tetro_type TETRO[7] = {
     }, {
         // T
         .bbsize = 3,
+        .spawn = -1,
         .mino = {{{1, 0}, {1, 1}, {1, 2}, {2, 1}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -36,6 +37,7 @@ tetro_type TETRO[7] = {
     }, {
         // L
         .bbsize = 3,
+        .spawn = -1,
         .mino = {{{1, 0}, {1, 1}, {1, 2}, {2, 2}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -46,6 +48,7 @@ tetro_type TETRO[7] = {
     }, {
         // J
         .bbsize = 3,
+        .spawn = -1,
         .mino = {{{1, 0}, {1, 1}, {1, 2}, {2, 0}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -56,6 +59,7 @@ tetro_type TETRO[7] = {
     }, {
         // S
         .bbsize = 3,
+        .spawn = -1,
         .mino = {{{1, 0}, {1, 1}, {2, 1}, {2, 2}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -66,6 +70,7 @@ tetro_type TETRO[7] = {
     }, {
         // Z
         .bbsize = 3,
+        .spawn = -1,
         .mino = {{{1, 1}, {1, 2}, {2, 0}, {2, 1}}},
         .rot = {
             {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
@@ -75,6 +80,13 @@ tetro_type TETRO[7] = {
         }
     }
 };
+
+uint8_t matrix[MATRIX_H][MATRIX_W];
+
+uint8_t drop_type;
+uint8_t drop_ori;
+uint8_t drop_pos[2];
+uint16_t drop_counter;
 
 void tetro_init()
 {
@@ -99,3 +111,36 @@ void tetro_init()
         }*/
     }
 };
+
+void tetris_spawn()
+{
+    drop_type = 1;
+    drop_ori = 0;
+    drop_pos[0] = MATRIX_HV + TETRO[drop_type].spawn;
+    drop_pos[1] = (MATRIX_W - TETRO[drop_type].bbsize) / 2;
+    drop_counter = 30;
+}
+
+bool tetris_drop()
+{
+    drop_pos[0]--;
+    for (uint8_t i = 0; i < 4; i++) {
+        uint8_t r = drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0];
+        uint8_t c = drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1];
+        if (r >= MATRIX_H || c >= MATRIX_W || matrix[r][c] != MINO_NONE) {
+            drop_pos[0]++;
+            return false;
+        }
+    }
+    return true;
+}
+
+void tetris_tick()
+{
+    if (--drop_counter == 0) {
+        if (tetris_drop()) {
+            drop_counter = 30;
+        } else {
+        }
+    }
+}
