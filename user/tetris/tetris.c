@@ -109,6 +109,7 @@ void tetro_init()
                 printf(" (%u %u)", m[j][k][0], m[j][k][1]);
             putchar('\n');
         }*/
+#undef m
     }
 };
 
@@ -161,6 +162,27 @@ bool tetris_hor(int8_t dx)
         return false;
     }
     return true;
+}
+
+bool tetris_rotate(int8_t dir)
+{
+    uint8_t od = drop_ori;
+    uint8_t ox = drop_pos[0], oy = drop_pos[1];
+    drop_ori = (drop_ori + dir + 4) % 4;
+    // Try 5 rotation points in sequential order
+    for (uint8_t i = 0; i < 5; i++) {
+#define r   TETRO[drop_type].rot
+        int8_t dx = (int8_t)r[od][i][0] - r[drop_ori][i][0];
+        int8_t dy = (int8_t)r[od][i][1] - r[drop_ori][i][1];
+        drop_pos[0] = ox + dx;
+        drop_pos[1] = oy + dy;
+        if (tetris_check()) return true;
+#undef m
+    }
+    drop_ori = od;
+    drop_pos[0] = ox;
+    drop_pos[1] = oy;
+    return false;
 }
 
 uint8_t tetris_tick()

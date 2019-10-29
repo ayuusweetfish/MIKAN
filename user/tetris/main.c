@@ -59,6 +59,8 @@ void update()
     if ((b0 & BUTTON_LEFT) && !(b1 & BUTTON_LEFT)) tetris_hor(-1);
     if ((b0 & BUTTON_RIGHT) && !(b1 & BUTTON_RIGHT)) tetris_hor(+1);
     if (b0 & BUTTON_DOWN) tetris_drop();
+    if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) tetris_rotate(+1);
+    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) tetris_rotate(-1);
     b1 = b0;
 
     uint8_t action = tetris_tick();

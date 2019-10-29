@@ -43,6 +43,7 @@ bool tetris_check();
 void tetris_lockdown();
 bool tetris_drop();
 bool tetris_hor(int8_t dx);
+bool tetris_rotate(int8_t dir);
 
 #define TETRIS_NONE     0
 #define TETRIS_LOCKDOWN 1
