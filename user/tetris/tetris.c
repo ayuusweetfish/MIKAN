@@ -90,7 +90,7 @@ bool hold_used;
 
 uint8_t drop_type;
 uint8_t drop_ori;
-uint8_t drop_pos[2];
+int8_t drop_pos[2];
 uint8_t drop_countdown;
 uint8_t drop_lowest;
 uint8_t epld_counter;
@@ -216,7 +216,7 @@ bool tetris_hor(int8_t dx)
 bool tetris_rotate(int8_t dir)
 {
     uint8_t od = drop_ori;
-    uint8_t ox = drop_pos[0], oy = drop_pos[1];
+    int8_t ox = drop_pos[0], oy = drop_pos[1];
     drop_ori = (drop_ori + dir + 4) % 4;
     // Try 5 rotation points in sequential order
     for (uint8_t i = 0; i < 5; i++) {
@@ -261,6 +261,15 @@ bool tetris_hold()
         tetris_resetpos();
     }
     return true;
+}
+
+int8_t tetris_ghost()
+{
+    int8_t ox = drop_pos[0];
+    while (tetris_check()) drop_pos[0]--;
+    int8_t ret = drop_pos[0] + 1;
+    drop_pos[0] = ox;
+    return ret;
 }
 
 uint8_t tetris_tick()

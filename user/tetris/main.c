@@ -46,7 +46,6 @@ void init()
 {
     tetro_init();
     memset(matrix, MINO_NONE, sizeof matrix);
-    for (int i = 0; i < 7; i++) matrix[0][i] = i;
     tetris_spawn();
 }
 
@@ -95,6 +94,16 @@ static inline void draw_mino(uint8_t row, uint8_t col, uint8_t t)
             MINO_COLOURS[t][0], MINO_COLOURS[t][1], MINO_COLOURS[t][2]);
 }
 
+static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
+{
+    uint8_t x = MATRIX_X1 + col * MINO_W;
+    uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
+    for (int i = 0; i < MINO_W; i++)
+    for (int j = 0; j < MINO_W; j++)
+        pix(x + i, y + j,
+            MINO_COLOURS[t][0] / 2, MINO_COLOURS[t][1] / 2, MINO_COLOURS[t][2] / 2);
+}
+
 static inline void draw_matrix()
 {
     for (int i = 0; i <= MATRIX_HV; i++)
@@ -110,6 +119,13 @@ static inline void draw_matrix()
             draw_mino(i, j, matrix[i][j]);
     }
 
+    // Ghost
+    uint8_t ghost_row = tetris_ghost();
+    for (int i = 0; i < 4; i++)
+        draw_mino_ghost(
+            ghost_row + TETRO[drop_type].mino[drop_ori][i][0],
+            drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1],
+            drop_type);
     // Dropping
     for (int i = 0; i < 4; i++)
         draw_mino(

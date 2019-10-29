@@ -38,7 +38,7 @@ extern bool hold_used;
 
 extern uint8_t drop_type;
 extern uint8_t drop_ori;
-extern uint8_t drop_pos[2];     // {row, column}
+extern int8_t drop_pos[2];      // {row, column}
 extern uint8_t drop_countdown;
 extern uint8_t drop_lowest;     // Lowest row the bounding box has ever reached
 extern uint8_t epld_counter;    // Extended placement lock down
@@ -55,6 +55,7 @@ bool tetris_hor(int8_t dx);
 bool tetris_rotate(int8_t dir);
 void tetris_harddrop();
 bool tetris_hold();
+int8_t tetris_ghost();
 
 #define TETRIS_NONE     0
 #define TETRIS_LOCKDOWN 1
