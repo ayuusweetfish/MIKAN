@@ -74,11 +74,11 @@ static inline void blit(uint8_t i)
 {
     int x0, y0;
     for (int x = -8; x <= 8; x++) if ((x0 = q[i][0] + x) >= 0 && x0 < 256)
-    for (int y = 8; y >= -8; y--) if ((y0 = q[i][1] + y) >= 0 && y0 < 256) {
+    for (int y = -8; y <= 8; y++) if ((y0 = q[i][1] + y) >= 0 && y0 < 256) {
         if (x * x + y * y > (int)(8.5f * 8.5f)) continue;
 
         static const uint32_t button[4] = {
-            BUTTON_TRI, BUTTON_SQR, BUTTON_CRO, BUTTON_CIR
+            BUTTON_TRI, BUTTON_CIR, BUTTON_CRO, BUTTON_SQR
         };
         uint8_t r1 = 240, g1 = 192, b1 = 108;
         uint8_t r2 = 128, g2 = 96, b2 = 32;
@@ -89,7 +89,7 @@ static inline void blit(uint8_t i)
             r1 = 192, g1 = 240;
             r2 = 96, g2 = 128;
         }
-        if (y0 > 0) pix(x0, y0 - 1, r2, g2, b2);
+        if (y0 > 0) pix(x0, y0 + 1, r2, g2, b2);
         if (x0 < 255) pix(x0 + 1, y0, r2, g2, b2);
         pix(x0, y0, r1, g1, b1);
     }
