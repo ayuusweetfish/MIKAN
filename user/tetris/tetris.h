@@ -57,10 +57,9 @@ void tetris_harddrop();
 bool tetris_hold();
 int8_t tetris_ghost();
 
-#define TETRIS_NONE     0
-#define TETRIS_LOCKDOWN 1
-#define TETRIS_GAMEOVER 2
+#define TETRIS_LOCKDOWN (1 << 30)
+#define TETRIS_GAMEOVER (1 << 31)
 
-uint8_t tetris_tick();
+uint32_t tetris_tick();
 
 #endif

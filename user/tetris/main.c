@@ -66,8 +66,8 @@ void update()
     if ((b0 & BUTTON_TRI) && !(b1 & BUTTON_TRI)) tetris_hold();
     b1 = b0;
 
-    uint8_t action = tetris_tick();
-    if (action == TETRIS_LOCKDOWN) {
+    uint32_t action = tetris_tick();
+    if (action & TETRIS_LOCKDOWN) {
         tetris_spawn();
     }
 }

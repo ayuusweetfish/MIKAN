@@ -1,5 +1,7 @@
 #include "tetris.h"
 
+#include <string.h>
+
 tetro_type TETRO[7] = {
     {
         // O
@@ -272,7 +274,28 @@ int8_t tetris_ghost()
     return ret;
 }
 
-uint8_t tetris_tick()
+static inline uint32_t tetris_clearlines()
+{
+    uint8_t ret = 0;
+    for (uint8_t i = 0, j = 0; i < MATRIX_H && j < MATRIX_HV; i++) {
+        // i = current row to be checked
+        // j = next row to copy in the matrix
+        bool line_cleared = true;
+        for (uint8_t c = 0; c < MATRIX_W; c++)
+            if (matrix[i][c] == MINO_NONE) { line_cleared = false; break; }
+        if (line_cleared) {
+            ret |= (1 << i);
+            memcpy(matrix[j], matrix[i], sizeof matrix[j]);
+        } else {
+            // Copy a line
+            if (i != j) memcpy(matrix[j], matrix[i], sizeof matrix[j]);
+            j++;
+        }
+    }
+    return ret;
+}
+
+uint32_t tetris_tick()
 {
     if (drop_countdown != 0) drop_countdown--;
     if (epld_countdown != 0) epld_countdown--;
@@ -281,8 +304,8 @@ uint8_t tetris_tick()
         } else if (epld_countdown == 0) {
             if (!tetris_check()) return TETRIS_GAMEOVER;
             tetris_lockdown();
-            return TETRIS_LOCKDOWN;
+            return TETRIS_LOCKDOWN | tetris_clearlines();
         }
     }
-    return TETRIS_NONE;
+    return 0;
 }
