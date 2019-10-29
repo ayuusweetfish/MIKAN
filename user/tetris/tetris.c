@@ -236,6 +236,7 @@ void tetris_harddrop()
 {
     while (tetris_drop()) { }
     drop_countdown = 1;   // Lock down will happen at the following tick()
+    epld_countdown = 1;
 }
 
 uint8_t tetris_tick()
