@@ -85,6 +85,8 @@ uint8_t matrix[MATRIX_H][MATRIX_W];
 
 uint8_t drop_next[14];
 uint8_t drop_pointer;
+uint8_t hold_type;
+bool hold_used;
 
 uint8_t drop_type;
 uint8_t drop_ori;
@@ -121,6 +123,7 @@ void tetro_init()
     tetris_refill(0);
     tetris_refill(7);
     drop_pointer = 0;
+    hold_type = MINO_NONE;
 };
 
 static inline uint32_t mrand()
@@ -140,18 +143,23 @@ void tetris_refill(uint8_t start)
     }
 }
 
-void tetris_spawn()
+void tetris_resetpos()
 {
-    drop_type = drop_next[drop_pointer];
-    if ((drop_pointer = (drop_pointer + 1) % 14) % 7 == 0)
-        tetris_refill(7 - drop_pointer);
-
     drop_ori = 0;
     drop_pos[0] = MATRIX_HV + TETRO[drop_type].spawn;
     drop_pos[1] = (MATRIX_W - TETRO[drop_type].bbsize) / 2;
     drop_lowest = drop_pos[0] + 1;
     epld_countdown = 0;
     tetris_drop();
+}
+
+void tetris_spawn()
+{
+    drop_type = drop_next[drop_pointer];
+    if ((drop_pointer = (drop_pointer + 1) % 14) % 7 == 0)
+        tetris_refill(7 - drop_pointer);
+    tetris_resetpos();
+    hold_used = false;
 }
 
 bool tetris_check()
@@ -237,6 +245,22 @@ void tetris_harddrop()
     while (tetris_drop()) { }
     drop_countdown = 1;   // Lock down will happen at the following tick()
     epld_countdown = 1;
+}
+
+bool tetris_hold()
+{
+    if (hold_used) return false;
+    hold_used = true;
+    if (hold_type == MINO_NONE) {
+        hold_type = drop_type;
+        tetris_spawn();
+    } else {
+        uint8_t t = hold_type;
+        hold_type = drop_type;
+        drop_type = t;
+        tetris_resetpos();
+    }
+    return true;
 }
 
 uint8_t tetris_tick()

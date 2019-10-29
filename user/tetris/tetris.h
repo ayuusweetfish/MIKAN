@@ -33,6 +33,8 @@ extern uint8_t matrix[MATRIX_H][MATRIX_W];
 
 extern uint8_t drop_next[14];
 extern uint8_t drop_pointer;
+extern uint8_t hold_type;
+extern bool hold_used;
 
 extern uint8_t drop_type;
 extern uint8_t drop_ori;
@@ -52,6 +54,7 @@ bool tetris_drop();
 bool tetris_hor(int8_t dx);
 bool tetris_rotate(int8_t dir);
 void tetris_harddrop();
+bool tetris_hold();
 
 #define TETRIS_NONE     0
 #define TETRIS_LOCKDOWN 1

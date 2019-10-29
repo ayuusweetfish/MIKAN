@@ -64,6 +64,7 @@ void update()
         tetris_rotate(+1);
     if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) tetris_rotate(-1);
     if ((b0 & BUTTON_SQR) && !(b1 & BUTTON_SQR)) tetris_harddrop();
+    if ((b0 & BUTTON_TRI) && !(b1 & BUTTON_TRI)) tetris_hold();
     b1 = b0;
 
     uint8_t action = tetris_tick();
@@ -109,12 +110,22 @@ static inline void draw_matrix()
             draw_mino(i, j, matrix[i][j]);
     }
 
+    // Dropping
     for (int i = 0; i < 4; i++)
         draw_mino(
             drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0],
             drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1],
             drop_type);
 
+    // Hold
+    if (hold_type != MINO_NONE)
+        for (int i = 0; i < 4; i++)
+            draw_mino(
+                MATRIX_HV - 1 - TETRO[hold_type].bbsize + TETRO[hold_type].mino[0][i][0],
+                -5 + TETRO[hold_type].mino[0][i][1],
+                hold_type);
+
+    // Preview
     for (int i = 0; i < 4; i++)     // Preview index
     for (int j = 0; j < 4; j++) {   // Mino index
         uint8_t t = drop_next[(drop_pointer + i) % 14];
