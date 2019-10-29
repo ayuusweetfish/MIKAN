@@ -9,8 +9,15 @@
 #define M_SQRT1_2   0.7071067811865476
 #endif
 
-float p0[2];
-float v0[2];
+static uint32_t buf[256][256];
+
+static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+{
+    buf[y][x] = (r << 16) | (g << 8) | b;
+}
+
+static float p0[2];
+static float v0[2];
 static int p[5][2];
 static int T = 0;
 
@@ -55,7 +62,10 @@ void update()
     v0[1] += delta[1] * rate;
     p0[0] += v0[0];
     p0[1] += v0[1];
+}
 
+void *draw()
+{
     recal_p();
 
     int x0, y0;
@@ -67,4 +77,6 @@ void update()
         if (x0 < 255) pix(x0 + 1, y0, 128, 96, 32);
         pix(x0, y0, 240, 192, 108);
     }
+
+    return (uint8_t *)buf;
 }

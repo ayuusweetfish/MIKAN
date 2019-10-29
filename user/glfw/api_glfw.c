@@ -25,9 +25,7 @@ static float vertices[6][4] = {
     {-1, 1, 0, 1},
 };
 
-static unsigned char buf[TEX_W * TEX_H * 4];
-void init();
-void update();
+static uint32_t buf[TEX_W * TEX_H];
 
 static void glfw_err_callback(int error, const char *desc)
 {
@@ -174,7 +172,7 @@ int main()
 
     for (int i = 0; i < TEX_H; i++)
     for (int j = 0; j < TEX_W; j++)
-        buf[(i * TEX_W + j) * 4 + 3] = 255;
+        buf[i * TEX_W + j] = 0xffffff;
 
     // -- Event/render loop --
 
@@ -190,12 +188,17 @@ int main()
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        while ((cur_time = glfwGetTime()) < last_time + 1.0f / FPS) usleep(1);
+        update();
+
+        while ((cur_time = glfwGetTime()) < last_time + 1.0f / FPS) usleep(1000);
         last_time = cur_time;
 
-        update();
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, TEX_W, TEX_H,
-            0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+        // TODO: Optionally skip draw() calls
+        void *nbuf = draw();
+        memcpy(buf, nbuf, sizeof buf);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TEX_W, TEX_H,
+            0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, buf);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
@@ -205,13 +208,8 @@ int main()
     return 0;
 }
 
-void register_update(simply_fun update)
+void register_loop(update_func_t update, draw_func_t draw)
 {
-}
-
-void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
-{
-    *((uint32_t *)buf + y * TEX_W + x) = r | (g << 8) | (b << 16);
 }
 
 uint32_t buttons()

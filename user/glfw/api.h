@@ -16,14 +16,15 @@
 #define BUTTON_SQR      BUTTON_X
 #define BUTTON_TRI      BUTTON_Y
 
-typedef void (*simply_fun)();
-void register_update(simply_fun update);
+typedef void (*update_func_t)();
+typedef void *(*draw_func_t)();
+void register_loop(update_func_t update, draw_func_t draw);
 
-void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b);
 uint32_t buttons();
 
 // Provided by application
 void init();
 void update();
+void *draw();
 
 #endif

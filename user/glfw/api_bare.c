@@ -9,11 +9,7 @@ static inline void syscall(uint32_t code, uint32_t arg)
         : : "r"(code), "r"(arg) : "r0", "r1", "memory");
 }
 
-void register_update(simply_fun update)
-{
-}
-
-void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+void register_loop(update_func_t update, draw_func_t draw)
 {
 }
 
@@ -24,6 +20,7 @@ uint32_t buttons()
 int main()
 {
     init();
+    register_loop(update, draw);
 
     return 0;
 }
