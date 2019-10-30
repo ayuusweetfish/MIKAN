@@ -122,6 +122,7 @@ void tetro_init()
 #undef m
     }
 
+    memset(matrix, MINO_NONE, sizeof matrix);
     tetris_refill(0);
     tetris_refill(7);
     drop_pointer = 0;

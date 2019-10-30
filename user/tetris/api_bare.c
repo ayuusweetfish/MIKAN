@@ -1,5 +1,14 @@
 #include "api.h"
 
+extern unsigned char _bss_begin;
+extern unsigned char _bss_end;
+
+void crt_init()
+{
+    unsigned char *begin = &_bss_begin, *end = &_bss_end;
+    while (begin < end) *begin++ = 0;
+}
+
 uint32_t syscall(uint32_t code, uint32_t arg1, uint32_t arg2)
 {
     uint32_t ret;
@@ -17,7 +26,7 @@ uint32_t syscall(uint32_t code, uint32_t arg1, uint32_t arg2)
 
 void register_loop(update_func_t update, draw_func_t draw)
 {
-    syscall(1, update, draw);
+    syscall(1, (uint32_t)update, (uint32_t)draw);
 }
 
 uint32_t buttons()
@@ -27,6 +36,8 @@ uint32_t buttons()
 
 int main()
 {
+    crt_init();
+
     init();
     register_loop(update, draw);
 

@@ -45,7 +45,6 @@ static inline void linev(
 void init()
 {
     tetro_init();
-    memset(matrix, MINO_NONE, sizeof matrix);
     tetris_spawn();
 }
 
