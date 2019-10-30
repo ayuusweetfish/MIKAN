@@ -48,15 +48,34 @@ void init()
     tetris_spawn();
 }
 
+static int8_t last_hor = 0;
+static uint32_t hor_hold = 0;
+static uint32_t drop_hold = 0;
+
 void update()
 {
     T++;
 
     static uint32_t b1 = 0;
     uint32_t b0 = buttons();
-    if ((b0 & BUTTON_LEFT) && !(b1 & BUTTON_LEFT)) tetris_hor(-1);
-    if ((b0 & BUTTON_RIGHT) && !(b1 & BUTTON_RIGHT)) tetris_hor(+1);
-    if (b0 & BUTTON_DOWN) tetris_drop();
+    int32_t hor = 0;
+    if (b0 & BUTTON_LEFT) hor -= 1;
+    if (b0 & BUTTON_RIGHT) hor += 1;
+    if (hor != 0) {
+        if (hor_hold == 0 || (hor_hold >= 20 && hor_hold % 2 == 0))
+            tetris_hor(hor);
+        hor_hold++;
+    } else {
+        hor_hold = 0;
+    }
+    last_hor = hor;
+
+    if (b0 & BUTTON_DOWN) {
+        if (drop_hold++ % 2 == 0) tetris_drop();
+    } else {
+        drop_hold = 0;
+    }
+
     if (((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) ||
         ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)))
         tetris_rotate(+1);
