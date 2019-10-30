@@ -285,7 +285,6 @@ static inline uint32_t tetris_clearlines()
             if (matrix[i][c] == MINO_NONE) { line_cleared = false; break; }
         if (line_cleared) {
             ret |= (1 << i);
-            memcpy(matrix[j], matrix[i], sizeof matrix[j]);
         } else {
             // Copy a line
             if (i != j) memcpy(matrix[j], matrix[i], sizeof matrix[j]);
