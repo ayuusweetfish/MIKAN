@@ -288,7 +288,8 @@ static inline uint32_t tetris_clearlines()
             ret |= (1 << i);
         } else {
             // Copy a line
-            if (i != j) memcpy(matrix[j], matrix[i], sizeof matrix[j]);
+            if (i != j)
+                for (uint8_t c = 0; c < MATRIX_W; c++) matrix[j][c] = matrix[i][c];
             j++;
         }
     }
