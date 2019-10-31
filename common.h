@@ -106,4 +106,8 @@ void uspios_init();
 void send_mail(uint32_t data, uint8_t channel);
 uint32_t recv_mail(uint8_t channel);
 
+void emit_dma(
+    void *dst, uint32_t dpitch, void *src, uint32_t spitch,
+    uint32_t rowsize, uint32_t nrows);
+
 #endif

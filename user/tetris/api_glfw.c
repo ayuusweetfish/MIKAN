@@ -198,7 +198,7 @@ int main()
         memcpy(buf, nbuf, sizeof buf);
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, TEX_W, TEX_H,
-            0, GL_RGB, GL_UNSIGNED_BYTE, buf);
+            0, GL_BGR, GL_UNSIGNED_BYTE, buf);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);

@@ -24,9 +24,9 @@ static uint32_t T = 0;
 
 static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
-    buf[y][x][0] = r;
+    buf[y][x][2] = r;
     buf[y][x][1] = g;
-    buf[y][x][2] = b;
+    buf[y][x][0] = b;
 }
 
 static inline void lineh(
@@ -178,5 +178,14 @@ void *draw()
 {
     memcpy(buf, bg, sizeof buf);
     draw_matrix();
+    uint32_t b = ~buttons();
+    if (b & 1) buf[32][0][0] = 255;
+    if (b & 2) buf[32][1][0] = 255;
+    if (b & 4) buf[32][2][0] = 255;
+    if (b & 8) buf[32][3][0] = 255;
+    if (b & 16) buf[32][4][0] = 255;
+    if (b & 32) buf[32][5][0] = 255;
+    if (b & 64) buf[32][6][0] = 255;
+    if (b & 128) buf[32][7][0] = 255;
     return (uint8_t *)buf;
 }

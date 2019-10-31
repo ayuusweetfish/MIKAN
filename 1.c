@@ -64,6 +64,16 @@ void murmur(uint32_t num)
     DMB();
 }
 
+uint32_t set_pixel_order(uint32_t val)
+{
+    static mbox_buf(4) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x00048006;   // Set pixel order
+    buf.tag.u32[0] = val;
+    mbox_emit(buf);
+    return buf.tag.u32[0];
+}
+
 uint32_t get_pixel_order()
 {
     static mbox_buf(4) buf __attribute__((section(".bss.dmem"), aligned(16)));
@@ -169,7 +179,7 @@ uint32_t _int_swi(uint32_t r0, uint32_t r1, uint32_t r2)
 {
     _set_domain_access((3 << 2) | 3);
     DMB(); DSB();
-    //printf("SVC %d\n", r0);
+    //printf("SVC %u %u %u\n", r0, r1, r2);
     //DMB(); DSB();
     uint32_t ret = 0;
     if (r0 == 1) {
@@ -258,6 +268,7 @@ void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
 
 void status_handler(unsigned int index, const USPiGamePadState *state)
 {
+    //printf("!!!!\n");
     const uint8_t *report = state->report;
     uint32_t report_len = state->report_len;
 
@@ -313,14 +324,7 @@ void timer3_handler(void *_unused)
     if (_update) (*_update)();
     if (_draw) {
         uint8_t *ret = (uint8_t *)(*_draw)();
-        uint8_t *buf = (uint8_t *)(f.buf);
-        for (uint32_t y = 0; y < f.pheight; y++)
-        for (uint32_t x = 0; x < f.pwidth; x++) {
-            buf[y * f.pitch + x * 3 + 2] = ret[0];
-            buf[y * f.pitch + x * 3 + 1] = ret[1];
-            buf[y * f.pitch + x * 3 + 0] = ret[2];
-            ret += 3;
-        }
+        emit_dma((void *)f.buf, f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
     }
     _set_domain_access((1 << 2) | 3);
 }
@@ -380,9 +384,9 @@ void kernel_main()
     // Region attributes: B4-12
     // Descriptor: B4-27
     // AP = (3 bits << 12), C = 8, B = 4
-    for (uint32_t i = 0; i < 4; i++)
-        mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 12);
-    _flush_mmu_table();
+    //for (uint32_t i = 0; i < 4; i++)
+    //    mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 12);
+    //_flush_mmu_table();
 
     DMB();
     print_init(buf, f.pwidth, f.pheight, f.pitch);
@@ -391,6 +395,8 @@ void kernel_main()
     printf("%d %d\n", dmem_start, dmem_end);
     DSB();
 
+    uint32_t ret = set_pixel_order(0);
+    if (ret != 0) while (1) { } // !
     uint32_t pix_ord = get_pixel_order();
     printf("Pixel order %s\n", pix_ord ? "RGB" : "BGR");
 

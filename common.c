@@ -83,3 +83,12 @@ void /*__attribute__((interrupt("IRQ")))*/ _int_irq()
 
     _set_domain_access((1 << 2) | 3);
 }
+
+void emit_dma(
+    void *dst, uint32_t dpitch, void *src, uint32_t spitch,
+    uint32_t rowsize, uint32_t nrows)
+{
+    uint8_t *_dst = dst, *_src = src;
+    for (uint32_t i = 0; i < nrows; i++, _dst += dpitch, _src += spitch)
+        for (uint32_t j = 0; j < rowsize; j++) _dst[j] = _src[j];
+}
