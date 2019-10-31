@@ -88,6 +88,10 @@ void emit_dma(
     void *dst, uint32_t dpitch, void *src, uint32_t spitch,
     uint32_t rowsize, uint32_t nrows)
 {
+    uint8_t *_dst = dst, *_src = src;
+    spitch = 256 * 3;
+    rowsize = 256 * 3;
+    nrows = 256;
     DMB(); DSB();
     src = (void *)(((uint32_t)src - 0x80000000 + 0x1000000) | 0xc0000000);
     dpitch -= rowsize;

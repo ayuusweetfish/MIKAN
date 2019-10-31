@@ -157,8 +157,8 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
 typedef void (*update_func_t)();
 typedef void *(*draw_func_t)();
 
-static update_func_t _update = NULL;
-static draw_func_t _draw = NULL;
+static volatile update_func_t _update = NULL;
+static volatile draw_func_t _draw = NULL;
 
 #define BUTTON_UP       (1 << 0)
 #define BUTTON_DOWN     (1 << 1)
@@ -201,6 +201,7 @@ void __attribute__((interrupt("ABORT"))) _int_pfabort()
 {
     _set_domain_access((3 << 2) | 3);
     DSB();
+    set_virtual_offs(0, 0);
     printf("Prefetch Abort\n");
     DMB();
     while (1) { murmur(5); wait(1000000); }
@@ -208,9 +209,12 @@ void __attribute__((interrupt("ABORT"))) _int_pfabort()
 
 void __attribute__((interrupt("ABORT"))) _int_dabort()
 {
+    uint32_t lr;
+    __asm__ __volatile__ ("mov %0, lr" : "=g"(lr));
     _set_domain_access((3 << 2) | 3);
     DSB();
-    printf("Data Abort\n");
+    set_virtual_offs(0, 0);
+    printf("Data Abort at %x\n", lr);
     DMB();
     while (1) {
         for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
@@ -258,14 +262,6 @@ void draw()
     _putchar('0' + frm * 1000000 / t % 10);
 }
 
-void qwqwq(TKernelTimerHandle h, void *_u1, void *_u2)
-{
-    _putchar('>');
-    _putchar('0' + h / 10);
-    _putchar('0' + h % 10);
-    _putchar('\n');
-}
-
 void status_handler(unsigned int index, const USPiGamePadState *state)
 {
     //printf("!!!!\n");
@@ -311,6 +307,9 @@ void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
     memset((void *)program->vaddr + program->filesz, 0, empty_len);
 }
 
+static volatile bool new_frame = false;
+static volatile uint8_t bufid = 0;
+
 void timer3_handler(void *_unused)
 {
     _set_domain_access((3 << 2) | 3);
@@ -320,13 +319,14 @@ void timer3_handler(void *_unused)
     t = t - t % 16667 + 16667;
     *SYSTMR_C3 = t;
 
-    // TODO: Do not run these with high privileges!
-    if (_update) (*_update)();
-    if (_draw) {
-        uint8_t *ret = (uint8_t *)(*_draw)();
-        emit_dma((void *)f.buf, f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
+    if (!new_frame) {
+        // Flip
+        set_virtual_offs(0, bufid * f.pheight);
+        new_frame = true;
+        bufid ^= 1;
     }
-    _set_domain_access((1 << 2) | 3);
+
+    //_set_domain_access((1 << 2) | 3);
 }
 
 void kernel_main()
@@ -428,14 +428,27 @@ void kernel_main()
     }
     _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
-    _set_domain_access((1 << 2) | 3);
 
     load_elf(user_c_a_out);
     const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
 
-    _enter_user_mode();
+    _set_domain_access((1 << 2) | 3);
+    //_enter_user_mode();
     _enter_user_code(ehdr->entry);
 
-    // Should not reach here
-    while (1) { }
+    _set_domain_access((3 << 2) | 3);
+    while (1) {
+        if (new_frame) {
+            // TODO: Optionally skip a frame
+            if (_update && _draw) {
+                //_set_domain_access((1 << 2) | 3);
+                (*_update)();
+                uint8_t *ret = (uint8_t *)(*_draw)();
+                //_set_domain_access((3 << 2) | 3);
+                emit_dma((void *)(f.buf + f.pitch * f.pheight * bufid),
+                    f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
+                new_frame = false;
+            }
+        }
+    }
 }
