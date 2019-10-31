@@ -40,7 +40,7 @@ extern uint8_t drop_type;
 extern uint8_t drop_ori;
 extern int8_t drop_pos[2];      // {row, column}
 extern uint8_t drop_countdown;
-extern uint8_t drop_lowest;     // Lowest row the bounding box has ever reached
+extern int8_t drop_lowest;      // Lowest row the bounding box has ever reached
 extern uint8_t epld_counter;    // Extended placement lock down
 extern uint8_t epld_countdown;
 

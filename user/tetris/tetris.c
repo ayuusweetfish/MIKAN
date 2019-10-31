@@ -94,7 +94,7 @@ uint8_t drop_type;
 uint8_t drop_ori;
 int8_t drop_pos[2];
 uint8_t drop_countdown;
-uint8_t drop_lowest;
+int8_t drop_lowest;
 uint8_t epld_counter;
 uint8_t epld_countdown;
 

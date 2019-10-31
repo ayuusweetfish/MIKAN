@@ -42,6 +42,11 @@ static inline void linev(
 }
 
 
+static const uint8_t bg[] = {
+    // ffmpeg -f rawvideo -pix_fmt rgb24 - -i background01.png | xxd -i > bg.h
+    #include "bg.h"
+};
+
 void init()
 {
     tetro_init();
@@ -85,9 +90,8 @@ void update()
     b1 = b0;
 
     uint32_t action = tetris_tick();
-    if (action & TETRIS_LOCKDOWN) {
-        tetris_spawn();
-    }
+    if (action & TETRIS_LOCKDOWN) tetris_spawn();
+    if (action & TETRIS_GAMEOVER) tetro_init();
 }
 
 static const uint8_t MINO_COLOURS[7][3] = {
@@ -155,7 +159,7 @@ static inline void draw_matrix()
     if (hold_type != MINO_NONE)
         for (int i = 0; i < 4; i++)
             draw_mino(
-                MATRIX_HV - 1 - TETRO[hold_type].bbsize + TETRO[hold_type].mino[0][i][0],
+                MATRIX_HV - 2 - TETRO[hold_type].bbsize + TETRO[hold_type].mino[0][i][0],
                 -5 + TETRO[hold_type].mino[0][i][1],
                 hold_type);
 
@@ -164,7 +168,7 @@ static inline void draw_matrix()
     for (int j = 0; j < 4; j++) {   // Mino index
         uint8_t t = drop_next[(drop_pointer + i) % 14];
         draw_mino(
-            MATRIX_HV - 1 - i * 3 - TETRO[t].bbsize + TETRO[t].mino[0][j][0],
+            MATRIX_HV - 2 - i * 3 - TETRO[t].bbsize + TETRO[t].mino[0][j][0],
             MATRIX_W + 1 + TETRO[t].mino[0][j][1],
             t);
     }
@@ -172,7 +176,7 @@ static inline void draw_matrix()
 
 void *draw()
 {
-    memset(buf, 0, sizeof buf);
+    memcpy(buf, bg, sizeof buf);
     draw_matrix();
     return (uint8_t *)buf;
 }
