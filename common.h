@@ -50,6 +50,13 @@
 
 #define INT_IRQ_ARMTMR  1
 
+#define DMA_BASE    0x20007000
+#define DMA_0_CS    (volatile uint32_t *)(DMA_BASE + 0x0)
+#define DMA_0_CBAD  (volatile uint32_t *)(DMA_BASE + 0x4)
+#define DMA_1_CS    (volatile uint32_t *)(DMA_BASE + 0x100)
+#define DMA_1_CBAD  (volatile uint32_t *)(DMA_BASE + 0x104)
+#define DMA_ENABLE  (volatile uint32_t *)(DMA_BASE + 0xff0)
+
 #define DMB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
 #define DSB() __asm__ __volatile__ ("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 

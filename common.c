@@ -88,7 +88,25 @@ void emit_dma(
     void *dst, uint32_t dpitch, void *src, uint32_t spitch,
     uint32_t rowsize, uint32_t nrows)
 {
-    uint8_t *_dst = dst, *_src = src;
+    DMB(); DSB();
+    //printf("%x %x %u %u\n", (uint32_t)src, (uint32_t)dst, nrows, rowsize);
+    //dst = (void *)((uint32_t)dst | 0xc0000000);
+    src = (void *)(((uint32_t)src - 0x80000000 + 0x1000000) | 0xc0000000);
+    *DMA_ENABLE = (*DMA_ENABLE) | 2;
+    *DMA_1_CS = (1 << 31);
+    /*uint8_t *_dst = dst, *_src = src;
     for (uint32_t i = 0; i < nrows; i++, _dst += dpitch, _src += spitch)
-        for (uint32_t j = 0; j < rowsize; j++) _dst[j] = _src[j];
+        for (uint32_t j = 0; j < rowsize; j++) _dst[j] = _src[j];*/
+    static uint32_t cblk[8] __attribute__((section(".bss.dmem"), aligned(256)));
+    cblk[0] = (1 << 8) | (1 << 4) | (1 << 1);
+    cblk[1] = (uint32_t)src;
+    cblk[2] = (uint32_t)dst;
+    cblk[3] = ((nrows << 16) | rowsize);
+    cblk[4] = ((dpitch << 16) | spitch);
+    cblk[5] = 0;
+    cblk[6] = cblk[7] = 0;
+    printf("%x %x %x\n", (uint32_t)src, (uint32_t)dst, (uint32_t)cblk);
+    *DMA_1_CBAD = (uint32_t)cblk | 0xc0000000;
+    *DMA_1_CS = 1;
+    DMB(); DSB();
 }
