@@ -24,7 +24,7 @@ static uint8_t font_data[CHAR_W * CHAR_H * 16 * 6];
 
 static uint8_t buf[256][256][3];
 
-static uint32_t T = 0;
+static uint32_t T;
 
 static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -73,6 +73,8 @@ static const uint8_t bg[] = {
 
 void init()
 {
+    T = 0;
+
     tetro_init();
     tetris_spawn();
 }
@@ -198,6 +200,20 @@ static inline void draw_matrix()
             MATRIX_W + 1 + TETRO[t].mino[0][j][1],
             t);
     }
+
+    char s[4] = { 0 };
+
+    text_str(10, 128, "Time");
+    s[0] = '0' + (T / 60) / 100;
+    s[1] = '0' + (T / 60) / 10 % 10;
+    s[2] = '0' + (T / 60) % 10;
+    text_str(32, 144, s);
+
+    text_str(10, 180, "Clear");
+    s[0] = '0' + clear_count / 100;
+    s[1] = '0' + clear_count / 10 % 10;
+    s[2] = '0' + clear_count % 10;
+    text_str(32, 196, s);
 }
 
 void *draw()

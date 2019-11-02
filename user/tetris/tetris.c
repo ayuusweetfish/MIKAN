@@ -85,6 +85,8 @@ tetro_type TETRO[7] = {
 
 uint8_t matrix[MATRIX_H][MATRIX_W];
 
+uint32_t clear_count;
+
 uint8_t drop_next[14];
 uint8_t drop_pointer;
 uint8_t hold_type;
@@ -125,6 +127,7 @@ void tetro_init()
     memset(matrix, MINO_NONE, sizeof matrix);
     tetris_refill(0);
     tetris_refill(7);
+    clear_count = 0;
     drop_pointer = 0;
     hold_type = MINO_NONE;
 };
@@ -286,6 +289,7 @@ static inline uint32_t tetris_clearlines()
             if (matrix[i][c] == MINO_NONE) { line_cleared = false; break; }
         if (line_cleared) {
             ret |= (1 << i);
+            clear_count++;
         } else {
             // Copy a line
             if (i != j)

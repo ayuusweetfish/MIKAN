@@ -31,6 +31,8 @@ extern tetro_type TETRO[7];
 
 extern uint8_t matrix[MATRIX_H][MATRIX_W];
 
+extern uint32_t clear_count;
+
 extern uint8_t drop_next[14];
 extern uint8_t drop_pointer;
 extern uint8_t hold_type;
