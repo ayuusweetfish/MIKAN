@@ -33,6 +33,13 @@ static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
     buf[y][x][0] = b;
 }
 
+static inline void pix_alpha(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+{
+    buf[y][x][2] += ((r - buf[y][x][2]) >> 2) * 3;
+    buf[y][x][1] += ((g - buf[y][x][1]) >> 2) * 3;
+    buf[y][x][0] += ((b - buf[y][x][0]) >> 2) * 3;
+}
+
 static inline void lineh(
     uint8_t x1, uint8_t x2, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -53,8 +60,10 @@ static inline void text_char(uint8_t x, uint8_t y, signed char ch)
     uint16_t ptr = row * CHAR_W * 16 * CHAR_H + col * CHAR_W;
     for (uint8_t j = 0; j < CHAR_H; j++)
     for (uint8_t i = 0; i < CHAR_W; i++)
-        if (font_data[ptr + (j * CHAR_W * 16 + i)])
+        if (font_data[ptr + (j * CHAR_W * 16 + i)]) {
             pix(x + i, y + j, 255, 255, 255);
+            pix(x + i + 1, y + j + 1, 108, 108, 108);
+        }
 }
 
 static inline void text_str(uint8_t x, uint8_t y, const char *str)
@@ -137,9 +146,21 @@ static inline void draw_mino(uint8_t row, uint8_t col, uint8_t t)
     uint8_t x = MATRIX_X1 + col * MINO_W;
     uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
-    for (int j = 0; j < MINO_W; j++)
-        pix(x + i, y + j,
-            MINO_COLOURS[t][0], MINO_COLOURS[t][1], MINO_COLOURS[t][2]);
+    for (int j = 0; j < MINO_W; j++) {
+        uint8_t r = MINO_COLOURS[t][0];
+        uint8_t g = MINO_COLOURS[t][1];
+        uint8_t b = MINO_COLOURS[t][2];
+        if (i == MINO_W - 1 || j == MINO_W - 1) {
+            r = (r >> 2) * 3;
+            g = (g >> 2) * 3;
+            b = (b >> 2) * 3;
+        } else if (i == 0 || j == 0) {
+            r = 255 - ((255 - r) >> 2) * 3;
+            g = 255 - ((255 - g) >> 2) * 3;
+            b = 255 - ((255 - b) >> 2) * 3;
+        }
+        pix(x + i, y + j, r, g, b);
+    }
 }
 
 static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
@@ -148,18 +169,16 @@ static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
     uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
     for (int j = 0; j < MINO_W; j++)
-        pix(x + i, y + j,
+        pix_alpha(x + i, y + j,
             MINO_COLOURS[t][0] / 2, MINO_COLOURS[t][1] / 2, MINO_COLOURS[t][2] / 2);
 }
 
 static inline void draw_matrix()
 {
     for (int i = 0; i <= MATRIX_HV; i++)
-        lineh(MATRIX_X1, MATRIX_X2, MATRIX_Y1 - i * MINO_W,
-            128, 128, 128);
+        lineh(MATRIX_X1, MATRIX_X2, MATRIX_Y1 - i * MINO_W, 96, 96, 96);
     for (int j = 0; j <= MATRIX_W; j++)
-        linev(MATRIX_X1 + j * MINO_W, MATRIX_Y2, MATRIX_Y1,
-            128, 128, 128);
+        linev(MATRIX_X1 + j * MINO_W, MATRIX_Y2, MATRIX_Y1, 96, 96, 96);
 
     for (int i = 0; i < MATRIX_HV; i++)
     for (int j = 0; j < MATRIX_W; j++) {
