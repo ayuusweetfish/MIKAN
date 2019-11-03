@@ -200,17 +200,21 @@ void update()
                     uint8_t x0 = MATRIX_X1 + c * MINO_W;
                     uint8_t y0 = MATRIX_Y1 - (i + 1) * MINO_W;
                     uint8_t t = recent_clear[k][c];
-                    uint8_t r = MINO_COLOURS[t][0] - ((255 - MINO_COLOURS[t][0]) >> 2);
-                    uint8_t g = MINO_COLOURS[t][1] - ((255 - MINO_COLOURS[t][1]) >> 2);
-                    uint8_t b = MINO_COLOURS[t][2] - ((255 - MINO_COLOURS[t][2]) >> 2);
+                    uint8_t r = MINO_COLOURS[t][0] + ((255 - MINO_COLOURS[t][0]) >> 1);
+                    uint8_t g = MINO_COLOURS[t][1] + ((255 - MINO_COLOURS[t][1]) >> 1);
+                    uint8_t b = MINO_COLOURS[t][2] + ((255 - MINO_COLOURS[t][2]) >> 1);
                     for (uint8_t x = 0; x < MINO_W; x += 4)
                     for (uint8_t y = 0; y < MINO_W; y += 4)
                         add_particle(T, x0 + x, y0 + y, r, g, b);
                 }
+                k++;
             }
         }
     }
-    if (action & TETRIS_GAMEOVER) tetro_init();
+    if (action & TETRIS_GAMEOVER) {
+        T = 0;
+        tetro_init();
+    }
 }
 
 // Top-left corner
