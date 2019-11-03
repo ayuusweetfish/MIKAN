@@ -33,11 +33,18 @@ static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
     buf[y][x][0] = b;
 }
 
-static inline void pix_alpha(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
+static inline void pix_semi(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
     buf[y][x][2] += ((r - buf[y][x][2]) >> 2) * 3;
     buf[y][x][1] += ((g - buf[y][x][1]) >> 2) * 3;
     buf[y][x][0] += ((b - buf[y][x][0]) >> 2) * 3;
+}
+
+static inline void pix_alpha(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    buf[y][x][2] += ((uint16_t)(r - buf[y][x][2]) * a) >> 8;
+    buf[y][x][1] += ((uint16_t)(g - buf[y][x][1]) * a) >> 8;
+    buf[y][x][0] += ((uint16_t)(b - buf[y][x][0]) * a) >> 8;
 }
 
 static inline void lineh(
@@ -80,6 +87,69 @@ static const uint8_t bg[] = {
     #include "bg.h"
 };
 
+static int8_t last_hor = 0;
+static uint32_t hor_hold = 0;
+static uint32_t drop_hold = 0;
+
+#define PARTICLES_MAX   4096
+#define PARTICLE_LIFE   60
+#define PARTICLE_RADIUS 8
+
+static int16_t particle_count = 0;
+static struct particle {
+    float x, y, r, g, b;
+    float vx, vy;
+    uint32_t t;
+    uint16_t life;
+} particles[PARTICLES_MAX];
+
+// XXX: Duplication?
+static inline uint32_t mrand()
+{
+    static uint32_t seed = 20191103;
+    return (seed = ((seed * 1103515245) + 12345) & 0x7fffffff);
+}
+
+static inline void add_particle(float T, float x, float y, float r, float g, float b)
+{
+    if (particle_count >= PARTICLES_MAX) return;
+    float a = (float)mrand() / 0x80000000u * M_PI * 2;
+    uint16_t t = mrand() % PARTICLE_LIFE;
+    float l = ((float)mrand() / 0x80000000u * 0.4f + 0.8f);
+    particles[particle_count++] = (struct particle) {
+        x, y, r, g, b, PARTICLE_RADIUS * l * cosf(a), PARTICLE_RADIUS * l * sinf(a), T, t
+    };
+}
+
+static inline void update_and_draw_particles()
+{
+    for (uint16_t i = 0; i < particle_count; i++) {
+        if (T - particles[i].t >= particles[i].life) {
+            // To be removed
+            particles[i] = particles[--particle_count];
+            i--;
+        } else {
+            float r0 = (float)(T - particles[i].t) / particles[i].life;
+            float r = 1 - expf(-r0 * 5);
+            pix_alpha(
+                (uint8_t)(particles[i].x + particles[i].vx * r),
+                (uint8_t)(particles[i].y + particles[i].vy * r),
+                particles[i].r, particles[i].g, particles[i].b,
+                (uint8_t)(255 * (1 - r0) + 0.5f));
+        }
+    }
+}
+
+static const uint8_t MINO_COLOURS[7][3] = {
+    {254, 203, 0},
+    {0, 159, 218},
+    {149, 45, 152},
+    {255, 121, 0},
+    {0, 101, 189},
+    {105, 190, 40},
+    {237, 41, 57}
+};
+
 void init()
 {
     T = 0;
@@ -87,10 +157,6 @@ void init()
     tetro_init();
     tetris_spawn();
 }
-
-static int8_t last_hor = 0;
-static uint32_t hor_hold = 0;
-static uint32_t drop_hold = 0;
 
 void update()
 {
@@ -125,19 +191,27 @@ void update()
     b1 = b0;
 
     uint32_t action = tetris_tick();
-    if (action & TETRIS_LOCKDOWN) tetris_spawn();
+    if (action & TETRIS_LOCKDOWN) {
+        tetris_spawn();
+        if (action ^ TETRIS_LOCKDOWN) {
+            for (uint8_t i = 0, k = 0; i < MATRIX_H; i++) if (action & (1 << i)) {
+                for (uint8_t c = 0; c < MATRIX_W; c++) {
+                    // Generate a block of particles
+                    uint8_t x0 = MATRIX_X1 + c * MINO_W;
+                    uint8_t y0 = MATRIX_Y1 - (i + 1) * MINO_W;
+                    uint8_t t = recent_clear[k][c];
+                    uint8_t r = MINO_COLOURS[t][0] - ((255 - MINO_COLOURS[t][0]) >> 2);
+                    uint8_t g = MINO_COLOURS[t][1] - ((255 - MINO_COLOURS[t][1]) >> 2);
+                    uint8_t b = MINO_COLOURS[t][2] - ((255 - MINO_COLOURS[t][2]) >> 2);
+                    for (uint8_t x = 0; x < MINO_W; x += 4)
+                    for (uint8_t y = 0; y < MINO_W; y += 4)
+                        add_particle(T, x0 + x, y0 + y, r, g, b);
+                }
+            }
+        }
+    }
     if (action & TETRIS_GAMEOVER) tetro_init();
 }
-
-static const uint8_t MINO_COLOURS[7][3] = {
-    {254, 203, 0},
-    {0, 159, 218},
-    {149, 45, 152},
-    {255, 121, 0},
-    {0, 101, 189},
-    {105, 190, 40},
-    {237, 41, 57}
-};
 
 // Top-left corner
 static inline void draw_mino(uint8_t row, uint8_t col, uint8_t t)
@@ -169,7 +243,7 @@ static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
     uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
     for (int j = 0; j < MINO_W; j++)
-        pix_alpha(x + i, y + j,
+        pix_semi(x + i, y + j,
             MINO_COLOURS[t][0] / 2, MINO_COLOURS[t][1] / 2, MINO_COLOURS[t][2] / 2);
 }
 
@@ -219,6 +293,8 @@ static inline void draw_matrix()
             MATRIX_W + 1 + TETRO[t].mino[0][j][1],
             t);
     }
+
+    update_and_draw_particles();
 
     char s[4] = { 0 };
 

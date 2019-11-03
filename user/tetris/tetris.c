@@ -86,6 +86,7 @@ tetro_type TETRO[7] = {
 uint8_t matrix[MATRIX_H][MATRIX_W];
 
 uint32_t clear_count;
+uint8_t recent_clear[4][MATRIX_W];
 
 uint8_t drop_next[14];
 uint8_t drop_pointer;
@@ -281,7 +282,7 @@ int8_t tetris_ghost()
 static inline uint32_t tetris_clearlines()
 {
     uint8_t ret = 0;
-    for (uint8_t i = 0, j = 0; i < MATRIX_H && j < MATRIX_HV; i++) {
+    for (uint8_t i = 0, j = 0, k = 0; i < MATRIX_H && j < MATRIX_HV; i++) {
         // i = current row to be checked
         // j = next row to copy in the matrix
         bool line_cleared = true;
@@ -290,6 +291,8 @@ static inline uint32_t tetris_clearlines()
         if (line_cleared) {
             ret |= (1 << i);
             clear_count++;
+            for (uint8_t c = 0; c < MATRIX_W; c++) recent_clear[k][c] = matrix[i][c];
+            k++;
         } else {
             // Copy a line
             if (i != j)
