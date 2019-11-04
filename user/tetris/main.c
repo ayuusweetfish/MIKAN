@@ -31,12 +31,12 @@ static uint8_t buf[256][256][3];
 static uint8_t screen;
 
 #define MODE_MARATHON   0
-#define MODE_TIME       1
-#define MODE_SPRINT     2
+#define MODE_SPRINT     1
+#define MODE_ULTRA      2
 static uint8_t mode;
 static uint8_t level;
 
-#define TIMETRIAL_TIME  120
+#define ULTRA_DURATION  120
 
 static uint32_t T;
 static uint32_t b0, b1;
@@ -202,8 +202,8 @@ static void menu_draw()
 {
     text_xcen(128, 64, "= T E T R I S =");
     text_xcen(128, 128, "Marathon");
-    text_xcen(128, 128 + 24, "Time Trial");
-    text_xcen(128, 128 + 48, "Sprint");
+    text_xcen(128, 128 + 24, "Sprint");
+    text_xcen(128, 128 + 48, "Ultra");
 
     int8_t x = sinf((float)T * 0.06f) * 1.9;
     uint8_t y = menu_sel * 24;
@@ -297,8 +297,8 @@ static void game_update()
     if (action & TETRIS_GAMEOVER) {
         screen = SCR_LOSE;
     } else if (
-        (mode == MODE_TIME && T >= TIMETRIAL_TIME * 60) ||
-        (mode == MODE_SPRINT && clear_count >= 40)
+        (mode == MODE_SPRINT && clear_count >= 40) ||
+        (mode == MODE_ULTRA && T >= ULTRA_DURATION * 60)
     ) {
         screen = SCR_WIN;
     }
@@ -413,7 +413,7 @@ static inline void draw_matrix()
         text_str(32, 196, s);
     } else {
         text_str(10, 180, "Time");
-        uint32_t time = (mode == MODE_SPRINT ? T / 60 : TIMETRIAL_TIME - (T / 60));
+        uint32_t time = (mode == MODE_SPRINT ? T / 60 : ULTRA_DURATION - (T / 60));
         s[0] = '0' + time / 100;
         s[1] = '0' + time / 10 % 10;
         s[2] = '0' + time % 10;
