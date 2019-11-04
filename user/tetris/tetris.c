@@ -285,7 +285,7 @@ int8_t tetris_ghost()
 
 static inline uint32_t tetris_clearlines()
 {
-    uint8_t ret = 0;
+    uint32_t ret = 0;
     for (uint8_t i = 0, j = 0, k = 0; i < MATRIX_H && j < MATRIX_HV; i++) {
         // i = current row to be checked
         // j = next row to copy in the matrix

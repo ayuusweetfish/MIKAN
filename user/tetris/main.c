@@ -118,9 +118,10 @@ static const uint8_t bg[] = {
 #define PARTICLE_LIFE   60
 #define PARTICLE_RADIUS 8
 
-static int16_t particle_count = 0;
+static uint16_t particle_count = 0;
 static struct particle {
-    float x, y, r, g, b;
+    uint8_t x, y;
+    uint8_t r, g, b;
     float vx, vy;
     uint32_t t;
     uint16_t life;
@@ -133,7 +134,7 @@ static inline uint32_t mrand()
     return (seed = ((seed * 1103515245) + 12345) & 0x7fffffff);
 }
 
-static inline void add_particle(float T, float x, float y, float r, float g, float b)
+static inline void add_particle(uint32_t T, uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
     if (particle_count >= PARTICLES_MAX) return;
     float a = (float)mrand() / 0x80000000u * M_PI * 2;
@@ -147,7 +148,7 @@ static inline void add_particle(float T, float x, float y, float r, float g, flo
 static inline void update_and_draw_particles()
 {
     for (uint16_t i = 0; i < particle_count; i++) {
-        if (T - particles[i].t >= particles[i].life) {
+        if (T >= particles[i].t + particles[i].life) {
             // To be removed
             particles[i] = particles[--particle_count];
             i--;
@@ -438,6 +439,7 @@ void overlay_update()
     } else if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
         // Back
         screen = SCR_MENU;
+        particle_count = 0; // Clear particles
     }
 }
 
