@@ -41,5 +41,6 @@ int main()
     init();
     register_loop(update, draw);
 
+    syscall(251, 0, 0);
     return 0;
 }

@@ -158,9 +158,17 @@ _enter_user_mode:
 .global _enter_user_code
 _enter_user_code:
     # TODO: Avoid duplication
-    mrs     r1, cpsr
+    /*mrs     r1, cpsr
     bic     r1, r1, #0x1f
-    orr     r1, r1, #0x10
-    msr     cpsr_c, r1
+    orr     r1, r1, #0x10   // User mode
+    msr     cpsr_c, r1*/
     mov     sp, #0xa0000000
+    push    {lr}
+    ldr     lr, =_qwqwq
     bx      r0
+_qwqwq:
+    /*mrs     r1, cpsr
+    bic     r1, r1, #0x1f
+    orr     r1, r1, #0x1f   // System mode
+    msr     cpsr_c, r1*/
+    pop     {pc}
