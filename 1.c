@@ -309,6 +309,7 @@ void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
 
 static volatile bool new_frame = false;
 static volatile uint8_t bufid = 0;
+#define BUF_COUNT   4
 
 void timer3_handler(void *_unused)
 {
@@ -323,10 +324,10 @@ void timer3_handler(void *_unused)
         // Flip
         set_virtual_offs(0, bufid * f.pheight);
         new_frame = true;
-        bufid ^= 1;
+        bufid = (bufid + 1) % BUF_COUNT;
     }
 
-    //_set_domain_access((1 << 2) | 3);
+    _set_domain_access((1 << 2) | 3);
 }
 
 void kernel_main()
@@ -364,7 +365,7 @@ void kernel_main()
     f_volatile.pwidth = 256;
     f_volatile.pheight = 256;
     f_volatile.vwidth = 256;
-    f_volatile.vheight = 256 * 2;
+    f_volatile.vheight = 256 * BUF_COUNT;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -441,10 +442,10 @@ void kernel_main()
         if (new_frame) {
             // TODO: Optionally skip a frame
             if (_update && _draw) {
-                //_set_domain_access((1 << 2) | 3);
+                _set_domain_access((1 << 2) | 3);
                 (*_update)();
                 uint8_t *ret = (uint8_t *)(*_draw)();
-                //_set_domain_access((3 << 2) | 3);
+                _set_domain_access((3 << 2) | 3);
                 emit_dma((void *)(f.buf + f.pitch * f.pheight * bufid),
                     f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
                 new_frame = false;
