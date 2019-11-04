@@ -281,8 +281,7 @@ static void game_update()
         }
     }
     if (action & TETRIS_GAMEOVER) {
-        T = 0;
-        tetro_init();
+        screen = SCR_LOSE;
     }
 }
 
@@ -312,6 +311,7 @@ static inline void draw_mino(uint8_t row, uint8_t col, uint8_t t)
 
 static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
 {
+    if (row >= MATRIX_HV) return;
     uint8_t x = MATRIX_X1 + col * MINO_W;
     uint8_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
@@ -394,10 +394,27 @@ static void game_draw()
 
 void overlay_update()
 {
+    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
+        // Restart
+        screen = SCR_GAME;
+        game_init();
+    } else if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
+        // Back
+        screen = SCR_MENU;
+    }
 }
 
 void overlay_draw()
 {
+    uint8_t *_buf = &buf[0][0][0];
+    for (size_t i = 0; i < sizeof buf; i++) _buf[i] = ((uint16_t)_buf[i] * 3) >> 3;
+    //uint8_t *start = &buf[64][0][0], *end = &buf[112][0][0];
+    //for (; start < end; start++) *start = ((uint16_t)*start * 3) >> 3;
+
+    const char *msg = (screen == SCR_WIN ? "Supercalifragilisticexpialidocious" : "Oops! Try again");
+    text_xcen(128, 96, msg);
+    text_str(83, 128, "[X] - Restart");
+    text_str(83, 144, "[O] - Back");
 }
 
 

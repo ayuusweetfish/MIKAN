@@ -169,15 +169,17 @@ void tetris_spawn()
     hold_used = false;
 }
 
-bool tetris_check()
+bool tetris_check(uint8_t check_lowest)
 {
+    uint8_t lowest = MATRIX_H;
     for (uint8_t i = 0; i < 4; i++) {
         uint8_t r = drop_pos[0] + TETRO[drop_type].mino[drop_ori][i][0];
         uint8_t c = drop_pos[1] + TETRO[drop_type].mino[drop_ori][i][1];
         if (r >= MATRIX_H || c >= MATRIX_W || matrix[r][c] != MINO_NONE)
             return false;
+        if (lowest > r) lowest = r;
     }
-    return true;
+    return (!check_lowest || lowest < MATRIX_HV);
 }
 
 void tetris_lockdown()
@@ -193,7 +195,7 @@ void tetris_lockdown()
 bool tetris_drop()
 {
     drop_pos[0]--;
-    if (!tetris_check()) {
+    if (!tetris_check(0)) {
         drop_pos[0]++;
         return false;
     }
@@ -209,7 +211,7 @@ bool tetris_drop()
 bool tetris_hor(int8_t dx)
 {
     drop_pos[1] += dx;
-    if (!tetris_check()) {
+    if (!tetris_check(0)) {
         drop_pos[1] -= dx;
         return false;
     }
@@ -232,7 +234,7 @@ bool tetris_rotate(int8_t dir)
         int8_t dy = (int8_t)r[od][i][1] - r[drop_ori][i][1];
         drop_pos[0] = ox + dx;
         drop_pos[1] = oy + dy;
-        if (tetris_check()) {
+        if (tetris_check(0)) {
             if (epld_counter > 0) {
                 epld_counter--;
                 epld_countdown = 30;
@@ -273,7 +275,7 @@ bool tetris_hold()
 int8_t tetris_ghost()
 {
     int8_t ox = drop_pos[0];
-    while (tetris_check()) drop_pos[0]--;
+    while (tetris_check(0)) drop_pos[0]--;
     int8_t ret = drop_pos[0] + 1;
     drop_pos[0] = ox;
     return ret;
@@ -310,7 +312,7 @@ uint32_t tetris_tick()
     if (drop_countdown == 0) {
         if (tetris_drop()) {
         } else if (epld_countdown == 0) {
-            if (!tetris_check()) return TETRIS_GAMEOVER;
+            if (!tetris_check(1)) return TETRIS_GAMEOVER;
             tetris_lockdown();
             return TETRIS_LOCKDOWN | tetris_clearlines();
         }

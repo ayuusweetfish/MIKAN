@@ -51,7 +51,7 @@ void tetro_init();
 
 void tetris_refill(uint8_t start);
 void tetris_spawn();
-bool tetris_check();
+bool tetris_check(uint8_t check_lowest);
 void tetris_lockdown();
 bool tetris_drop();
 bool tetris_hor(int8_t dx);
