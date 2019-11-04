@@ -302,6 +302,11 @@ static void game_update()
     ) {
         screen = SCR_WIN;
     }
+
+    if (mode == MODE_MARATHON) {
+        level = 1 + (clear_count / 10);
+        drop_interval = 120 / (level + 3);
+    }
 }
 
 // Top-left corner

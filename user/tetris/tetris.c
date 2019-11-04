@@ -96,6 +96,7 @@ bool hold_used;
 uint8_t drop_type;
 uint8_t drop_ori;
 int8_t drop_pos[2];
+uint8_t drop_interval;
 uint8_t drop_countdown;
 int8_t drop_lowest;
 uint8_t epld_counter;
@@ -131,6 +132,7 @@ void tetro_init()
     clear_count = 0;
     drop_pointer = 0;
     hold_type = MINO_NONE;
+    drop_interval = 30;
 };
 
 static inline uint32_t mrand()
@@ -199,7 +201,7 @@ bool tetris_drop()
         drop_pos[0]++;
         return false;
     }
-    drop_countdown = 30;
+    drop_countdown = drop_interval;
     if (drop_pos[0] < drop_lowest) {
         drop_lowest = drop_pos[0];
         epld_counter = 15;
