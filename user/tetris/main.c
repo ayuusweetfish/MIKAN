@@ -24,7 +24,24 @@ static uint8_t font_data[CHAR_W * CHAR_H * 16 * 6];
 
 static uint8_t buf[256][256][3];
 
+#define SCR_MENU    0
+#define SCR_GAME    1
+#define SCR_WIN     2
+#define SCR_LOSE    3
+static uint8_t screen;
+
+#define MODE_MARATHON   0
+#define MODE_TIME       1
+#define MODE_SPRINT     2
+static uint8_t mode;
+
 static uint32_t T;
+static uint32_t b0, b1;
+
+static void game_init();
+static void game_draw();
+static void overlay_init();
+static void overlay_draw();
 
 static inline void pix(uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b)
 {
@@ -81,11 +98,66 @@ static inline void text_str(uint8_t x, uint8_t y, const char *str)
     }
 }
 
+static inline void text_xcen(uint8_t x, uint8_t y, const char *str)
+{
+    size_t n = strlen(str);
+    if (n > 0) text_str(x - (n * CHAR_W / 2), y, str);
+}
+
 
 static const uint8_t bg[] = {
     // ffmpeg -f rawvideo -pix_fmt rgb24 - -i background01.png | xxd -i > bg.h
     #include "bg.h"
 };
+
+
+////// MENU //////
+
+static uint8_t menu_sel = 0;
+static uint8_t last_menu_sel = 0;
+static uint32_t menu_sel_time = 0;
+#define MENU_TRANSITION_DUR 15
+
+static void menu_update()
+{
+    T++;
+
+    uint8_t m0 = menu_sel;
+
+    if ((b0 & BUTTON_DOWN) && !(b1 & BUTTON_DOWN)) menu_sel = (menu_sel + 1) % 3;
+    if ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)) menu_sel = (menu_sel + 2) % 3;
+    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
+        screen = SCR_GAME;
+        mode = menu_sel;
+        game_init();
+    }
+
+    if (menu_sel != m0) {
+        last_menu_sel = m0;
+        menu_sel_time = T;
+    }
+}
+
+static void menu_draw()
+{
+    text_xcen(128, 64, "= T E T R I S =");
+    text_xcen(128, 128, "Marathon");
+    text_xcen(128, 128 + 24, "Time Trial");
+    text_xcen(128, 128 + 48, "Sprint");
+
+    int8_t x = sinf((float)T * 0.06f) * 1.9;
+    uint8_t y = menu_sel * 24;
+    if (menu_sel_time + MENU_TRANSITION_DUR >= T) {
+        float rate = expf((float)(T - menu_sel_time) / MENU_TRANSITION_DUR * -4);
+        y -= (menu_sel - last_menu_sel) * rate * 24;
+    }
+
+    text_char(72 - CHAR_W / 2 + x, 131 + y, '~');
+    text_char(184 - CHAR_W / 2 - x, 131 + y, '~');
+}
+
+
+////// GAME //////
 
 static int8_t last_hor = 0;
 static uint32_t hor_hold = 0;
@@ -150,7 +222,7 @@ static const uint8_t MINO_COLOURS[7][3] = {
     {237, 41, 57}
 };
 
-void init()
+static void game_init()
 {
     T = 0;
 
@@ -158,12 +230,10 @@ void init()
     tetris_spawn();
 }
 
-void update()
+static void game_update()
 {
     T++;
 
-    static uint32_t b1 = 0;
-    uint32_t b0 = buttons();
     int32_t hor = 0;
     if (b0 & BUTTON_LEFT) hor -= 1;
     if (b0 & BUTTON_RIGHT) hor += 1;
@@ -188,7 +258,6 @@ void update()
     if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) tetris_rotate(-1);
     if ((b0 & BUTTON_SQR) && !(b1 & BUTTON_SQR)) tetris_harddrop();
     if ((b0 & BUTTON_TRI) && !(b1 & BUTTON_TRI)) tetris_hold();
-    b1 = b0;
 
     uint32_t action = tetris_tick();
     if (action & TETRIS_LOCKDOWN) {
@@ -315,10 +384,54 @@ static inline void draw_matrix()
     text_str(32, 196, s);
 }
 
+static void game_draw()
+{
+    draw_matrix();
+}
+
+
+////// OVERLAY //////
+
+void overlay_update()
+{
+}
+
+void overlay_draw()
+{
+}
+
+
+////// MAIN //////
+
+void init()
+{
+    b0 = b1 = 0;
+    screen = SCR_MENU;
+}
+
+void update()
+{
+    b1 = b0;
+    b0 = buttons();
+    switch (screen) {
+        case SCR_MENU: menu_update(); break;
+        case SCR_GAME: game_update(); break;
+        case SCR_WIN: case SCR_LOSE: overlay_update(); break;
+        default: break;
+    }
+}
+
 void *draw()
 {
     memcpy(buf, bg, sizeof buf);
-    draw_matrix();
+    switch (screen) {
+        case SCR_MENU: menu_draw(); break;
+        case SCR_GAME: game_draw(); break;
+        case SCR_WIN: case SCR_LOSE:
+            game_draw();
+            overlay_draw();
+        default: break;
+    }
     return (uint8_t *)buf;
 }
 
