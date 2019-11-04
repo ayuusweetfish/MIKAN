@@ -111,58 +111,6 @@ static const uint8_t bg[] = {
 };
 
 
-////// MENU //////
-
-static uint8_t menu_sel = 0;
-static uint8_t last_menu_sel = 0;
-static uint32_t menu_sel_time = 0;
-#define MENU_TRANSITION_DUR 15
-
-static void menu_update()
-{
-    T++;
-
-    uint8_t m0 = menu_sel;
-
-    if ((b0 & BUTTON_DOWN) && !(b1 & BUTTON_DOWN)) menu_sel = (menu_sel + 1) % 3;
-    if ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)) menu_sel = (menu_sel + 2) % 3;
-    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
-        screen = SCR_GAME;
-        mode = menu_sel;
-        game_init();
-    }
-
-    if (menu_sel != m0) {
-        last_menu_sel = m0;
-        menu_sel_time = T;
-    }
-}
-
-static void menu_draw()
-{
-    text_xcen(128, 64, "= T E T R I S =");
-    text_xcen(128, 128, "Marathon");
-    text_xcen(128, 128 + 24, "Time Trial");
-    text_xcen(128, 128 + 48, "Sprint");
-
-    int8_t x = sinf((float)T * 0.06f) * 1.9;
-    uint8_t y = menu_sel * 24;
-    if (menu_sel_time + MENU_TRANSITION_DUR >= T) {
-        float rate = expf((float)(T - menu_sel_time) / MENU_TRANSITION_DUR * -4);
-        y -= (menu_sel - last_menu_sel) * rate * 24;
-    }
-
-    text_char(72 - CHAR_W / 2 + x, 131 + y, '~');
-    text_char(184 - CHAR_W / 2 - x, 131 + y, '~');
-}
-
-
-////// GAME //////
-
-static int8_t last_hor = 0;
-static uint32_t hor_hold = 0;
-static uint32_t drop_hold = 0;
-
 #define PARTICLES_MAX   4096
 #define PARTICLE_LIFE   60
 #define PARTICLE_RADIUS 8
@@ -211,6 +159,68 @@ static inline void update_and_draw_particles()
         }
     }
 }
+
+
+////// MENU //////
+
+static uint8_t menu_sel = 0;
+static uint8_t last_menu_sel = 0;
+static uint32_t menu_sel_time = 0;
+#define MENU_TRANSITION_DUR 15
+
+static void menu_update()
+{
+    T++;
+
+    uint8_t m0 = menu_sel;
+
+    if ((b0 & BUTTON_DOWN) && !(b1 & BUTTON_DOWN)) menu_sel = (menu_sel + 1) % 3;
+    if ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)) menu_sel = (menu_sel + 2) % 3;
+    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
+        screen = SCR_GAME;
+        mode = menu_sel;
+        game_init();
+    }
+    if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
+        uint8_t x = mrand() % 128 + 64;
+        uint8_t y = mrand() % 128 + 64;
+        for (uint8_t i = 0; i < 64; i++)
+            add_particle(T, x, y,
+                mrand() % 128 + 128, mrand() % 128 + 128, mrand() % 128 + 128);
+    }
+
+    if (menu_sel != m0) {
+        last_menu_sel = m0;
+        menu_sel_time = T;
+    }
+}
+
+static void menu_draw()
+{
+    text_xcen(128, 64, "= T E T R I S =");
+    text_xcen(128, 128, "Marathon");
+    text_xcen(128, 128 + 24, "Time Trial");
+    text_xcen(128, 128 + 48, "Sprint");
+
+    int8_t x = sinf((float)T * 0.06f) * 1.9;
+    uint8_t y = menu_sel * 24;
+    if (menu_sel_time + MENU_TRANSITION_DUR >= T) {
+        float rate = expf((float)(T - menu_sel_time) / MENU_TRANSITION_DUR * -4);
+        y -= (menu_sel - last_menu_sel) * rate * 24;
+    }
+
+    text_char(72 - CHAR_W / 2 + x, 131 + y, '~');
+    text_char(184 - CHAR_W / 2 - x, 131 + y, '~');
+
+    update_and_draw_particles();
+}
+
+
+////// GAME //////
+
+static int8_t last_hor = 0;
+static uint32_t hor_hold = 0;
+static uint32_t drop_hold = 0;
 
 static const uint8_t MINO_COLOURS[7][3] = {
     {254, 203, 0},
@@ -449,7 +459,7 @@ void *draw()
             overlay_draw();
         default: break;
     }
-    return (uint8_t *)buf;
+    return (void *)buf;
 }
 
 // print('\n'.join(map(lambda x: ''.join(map(chr, range(32 + 16 * x, 48 + 16 * x))), range(6))))

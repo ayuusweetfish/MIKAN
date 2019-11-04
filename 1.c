@@ -57,9 +57,9 @@ void murmur(uint32_t num)
     DSB();
     for (uint32_t i = 0; i < num; i++) {
         *GPCLR1 = (1 << 15);
-        wait(200000);
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
         *GPSET1 = (1 << 15);
-        wait(200000);
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
     }
     DMB();
 }
@@ -442,10 +442,11 @@ void kernel_main()
         if (new_frame) {
             // TODO: Optionally skip a frame
             if (_update && _draw) {
-                _set_domain_access((1 << 2) | 3);
+                //DMB();
+                //_set_domain_access((1 << 2) | 3);
                 (*_update)();
                 uint8_t *ret = (uint8_t *)(*_draw)();
-                _set_domain_access((3 << 2) | 3);
+                //_set_domain_access((3 << 2) | 3);
                 emit_dma((void *)(f.buf + f.pitch * f.pheight * bufid),
                     f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
                 new_frame = false;

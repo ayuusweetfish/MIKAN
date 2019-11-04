@@ -84,15 +84,24 @@ void /*__attribute__((interrupt("IRQ")))*/ _int_irq()
     _set_domain_access((1 << 2) | 3);
 }
 
+uint8_t ___qwq___unused;
+
 void emit_dma(
     void *dst, uint32_t dpitch, void *src, uint32_t spitch,
     uint32_t rowsize, uint32_t nrows)
 {
+    DMB(); DSB();
     uint8_t *_dst = dst, *_src = src;
     spitch = 256 * 3;
     rowsize = 256 * 3;
     nrows = 256;
-    DMB(); DSB();
+    // XXX: Manually cleaning data cache...
+    /*_clean_data_cache();
+    for (uint32_t i = 0; i < nrows; i++, _dst += dpitch, _src += spitch)
+        for (uint32_t j = 0; j < rowsize; j += 8) ___qwq___unused += _src[j];*/
+    for (uint32_t i = 0; i < nrows; i++, _dst += dpitch, _src += spitch)
+        for (uint32_t j = 0; j < rowsize; j++) _dst[j] = _src[j];
+    return;
     src = (void *)(((uint32_t)src - 0x80000000 + 0x1000000) | 0xc0000000);
     dpitch -= rowsize;
     spitch -= rowsize;

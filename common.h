@@ -64,6 +64,7 @@ void _enable_int();
 void _enable_mmu(uint32_t table_base_addr);
 void _set_domain_access(uint32_t control);
 void _flush_mmu_table();
+void _clean_data_cache();
 void _standby();
 uint32_t _get_mode();
 void _enter_user_mode();

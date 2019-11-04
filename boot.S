@@ -126,6 +126,13 @@ _flush_mmu_table:
     mcr     p15, 0, r0, c8, c7, 0
     bx      lr
 
+.global _clean_data_cache
+_clean_data_cache:
+    mov     r1, #0
+    # ARM ARM p. B6-21
+    mcr     p15, 0, r1, c7, c10, 0
+    bx      lr
+
 # r0 is the desired domain access vector (ARM ARM p. B4-10/B4-42)
 .global _set_domain_access
 _set_domain_access:
