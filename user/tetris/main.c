@@ -443,7 +443,8 @@ void overlay_draw()
     //uint8_t *start = &buf[64][0][0], *end = &buf[112][0][0];
     //for (; start < end; start++) *start = ((uint16_t)*start * 3) >> 3;
 
-    const char *msg = (screen == SCR_WIN ? "Supercalifragilisticexpialidocious" :
+    const char *msg = (screen == SCR_WIN ?
+        (mode == MODE_SPRINT ? "Supercalifragilisticexpialidocious" : "It's been great work!") :
         (mode == MODE_MARATHON ? "It's been great work!" : "Oops! Try again"));
     text_xcen(128, 96, msg);
     text_str(83, 128, "[X] - Restart");
