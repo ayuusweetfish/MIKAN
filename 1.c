@@ -1,7 +1,7 @@
 #include "common.h"
 #include "user/elf/elf.h"
 
-#include "user_c_a_out.h"
+//#include "user_c_a_out.h"
 
 extern unsigned char _bss_dmem_begin;
 extern unsigned char _bss_dmem_end;
@@ -407,6 +407,30 @@ void kernel_main()
     }
     set_clock_rate(3, (get_min_clock_rate(3) + get_max_clock_rate(3)) / 2);
 
+    DMB();
+    sdInit();
+    DSB();
+    DMB();
+    int32_t i = sdInitCard();
+    DSB();
+    DMB();
+    wait(100000);
+    DSB();
+    printf("sdInitCard() returns %d\n", i);
+
+    // MBR
+    uint8_t carddata[512] = { 0 };
+    i = sdTransferBlocks(0x0LL, 1, carddata, 0);
+    printf("sdTransferBlocks() returns %d\n", i);
+    for (uint32_t j = 432; j < 512; j += 16) {
+        printf("\n%3x | ", j);
+        for (uint8_t k = 0; k < 16; k++)
+            printf("%2x", carddata[j + k]);
+    }
+
+    while (1) { }
+
+/*
     uspios_init();
 
     uint8_t mac_addr[6];
@@ -453,4 +477,5 @@ void kernel_main()
             }
         }
     }
+*/
 }
