@@ -427,6 +427,27 @@ void kernel_main()
         for (uint8_t k = 0; k < 16; k++)
             printf("%2x", carddata[j + k]);
     }
+    _putchar('\n');
+
+    FATFS fs;
+    DIR dir;
+    FILINFO finfo;
+    FRESULT fr;
+    
+    fr = f_mount(&fs, "", 1);
+    printf("f_mount() returned %d\n", (int32_t)fr);
+    fr = f_opendir(&dir, "/");
+    printf("f_opendir() returned %d\n", (int32_t)fr);
+    while (1) {
+        fr = f_readdir(&dir, &finfo);
+        if (fr != FR_OK || finfo.fname[0] == 0) break;
+        if (finfo.fattrib & AM_DIR) {
+            printf("dir  %s\n", finfo.fname);
+        } else {
+            printf("file %s\n", finfo.fname);
+        }
+    }
+    f_closedir(&dir);
 
     while (1) { }
 
