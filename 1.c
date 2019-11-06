@@ -407,6 +407,50 @@ void kernel_main()
     }
     set_clock_rate(3, (get_min_clock_rate(3) + get_max_clock_rate(3)) / 2);
 
+    DMB();
+    sdInit();
+    DSB();
+    DMB();
+    int32_t i = sdInitCard();
+    DSB();
+    DMB();
+    wait(100000);
+    DSB();
+    printf("sdInitCard() returns %d\n", i);
+
+    // MBR
+    uint8_t carddata[512] = { 0 };
+    i = sdTransferBlocks(0x0LL, 1, carddata, 0);
+    printf("sdTransferBlocks() returns %d\n", i);
+    for (uint32_t j = 432; j < 512; j += 16) {
+        printf("\n%3x | ", j);
+        for (uint8_t k = 0; k < 16; k++)
+            printf("%2x", carddata[j + k]);
+    }
+    _putchar('\n');
+
+    FATFS fs;
+    DIR dir;
+    FILINFO finfo;
+    FRESULT fr;
+    
+    fr = f_mount(&fs, "", 1);
+    printf("f_mount() returned %d\n", (int32_t)fr);
+    fr = f_opendir(&dir, "/");
+    printf("f_opendir() returned %d\n", (int32_t)fr);
+    while (1) {
+        fr = f_readdir(&dir, &finfo);
+        if (fr != FR_OK || finfo.fname[0] == 0) break;
+        if (finfo.fattrib & AM_DIR) {
+            printf("dir  %s\n", finfo.fname);
+        } else {
+            printf("file %s\n", finfo.fname);
+        }
+    }
+    f_closedir(&dir);
+
+    wait(10000000); // Wait 10 seconds
+
     uspios_init();
 
     uint8_t mac_addr[6];

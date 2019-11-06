@@ -8,6 +8,8 @@
 #include "printf/printf.h"
 #include "uspi.h"
 #include "uspios.h"
+#include "sdcard/sdcard.h"
+#include "fatfs/ff.h"
 
 #define GPIO_BASE   0x20200000
 
