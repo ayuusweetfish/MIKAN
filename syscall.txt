@@ -1,6 +1,8 @@
 idx #arg #ret desc
 1   2    0    Register update/draw loop
-2   0    1    Get buttons
+2   1    1    Get buttons for a given player
+3   0    1    Get number of players connected (maximum 4)
+4   0    1    Get a 32-bit hardware-generated random number
 42  0    0    Turn on ACT LED
 43  0    0    Turn off ACT LED
-251 0    0    Finish application startup logic
+251 1    0    Return from application logic (startup/update/draw)
