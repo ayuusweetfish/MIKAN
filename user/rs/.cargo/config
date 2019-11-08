@@ -1,10 +1,16 @@
 [build]
 target = "arm-unknown-linux-gnueabihf"
+
+[target.arm-unknown-linux-gnueabihf]
+linker = "arm-none-eabi-ld"
 rustflags = [
+    "--cfg", 'feature="mikan-bare"',
     "--emit=obj",
     "-C", "link-arg=-static",
     "-C", "link-arg=-Tlink.ld",
 ]
 
-[target.arm-unknown-linux-gnueabihf]
-linker = "arm-none-eabi-ld"
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-lSystem"
+]
