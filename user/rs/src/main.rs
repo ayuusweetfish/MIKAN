@@ -1,14 +1,6 @@
-#![feature(lang_items)]
+#![cfg_attr(feature = "mikan-bare", feature(lang_items))]
+#![cfg_attr(feature = "mikan-bare", no_std)]
 #![no_main]
-#![no_std]
-
-use core::panic::PanicInfo;
-
-#[lang = "eh_personality"]
-extern fn eh_personality() { }
-
-#[panic_handler]
-extern fn panic_handler(_info: &PanicInfo) -> ! { loop { } }
 
 #[cfg_attr(feature = "mikan-bare", path = "mikan_bare.rs")]
 #[cfg_attr(not(feature = "mikan-bare"), path = "mikan_hosted.rs")]
@@ -25,5 +17,7 @@ fn qwq() -> u8 {
 pub extern fn main() {
     let _a = qwq();
     mikan_core::qwqputs("Hello, world! The answer is\0");
+    // Usable in hosted environment
+    // println!("The answer is {}", _a);
     loop { }
 }
