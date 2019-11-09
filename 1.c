@@ -1,8 +1,6 @@
 #include "common.h"
 #include "user/elf/elf.h"
 
-#include "user_c_a_out.h"
-
 extern unsigned char _bss_dmem_begin;
 extern unsigned char _bss_dmem_end;
 
@@ -385,9 +383,9 @@ void kernel_main()
     // Region attributes: B4-12
     // Descriptor: B4-27
     // AP = (3 bits << 12), C = 8, B = 4
-    //for (uint32_t i = 0; i < 4; i++)
-    //    mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 12);
-    //_flush_mmu_table();
+    for (uint32_t i = 0; i < 4; i++)
+        mmu_table_section(mm_sys, buf_p + (i << 20), buf_p + (i << 20), 12);
+    _flush_mmu_table();
 
     DMB();
     print_init(buf, f.pwidth, f.pheight, f.pitch);
@@ -433,23 +431,24 @@ void kernel_main()
     DIR dir;
     FILINFO finfo;
     FRESULT fr;
-    
+
+    static char path_buf[FF_LFN_BUF * 2 + 10];
+    static char appnames[256][FF_LFN_BUF + 1];
+    uint8_t appcount = 0;
+
     fr = f_mount(&fs, "", 1);
     printf("f_mount() returned %d\n", (int32_t)fr);
-    fr = f_opendir(&dir, "/");
+    fr = f_opendir(&dir, "/app");
     printf("f_opendir() returned %d\n", (int32_t)fr);
     while (1) {
         fr = f_readdir(&dir, &finfo);
         if (fr != FR_OK || finfo.fname[0] == 0) break;
         if (finfo.fattrib & AM_DIR) {
-            printf("dir  %s\n", finfo.fname);
-        } else {
-            printf("file %s\n", finfo.fname);
+            strcpy(appnames[appcount], finfo.fname);
+            appcount++;
         }
     }
     f_closedir(&dir);
-
-    wait(10000000); // Wait 10 seconds
 
     uspios_init();
 
@@ -461,6 +460,57 @@ void kernel_main()
     USPiInitialize();
     uint32_t count = USPiGamePadAvailable();
     if (count) USPiGamePadRegisterStatusHandler(status_handler);
+
+    // Stupid application selection interface
+    bool selected;
+    uint8_t selappidx = 0;
+    uint32_t b0 = 0, b1;
+reselect:
+    selected = false;
+    do {
+        // Update
+        b1 = b0;
+        b0 = _buttons;
+        if ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP))
+            selappidx = (selappidx + appcount - 1) % appcount;
+        if ((b0 & BUTTON_DOWN) && !(b1 & BUTTON_DOWN))
+            selappidx = (selappidx + 1) % appcount;
+        if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO))
+            selected = true;
+        // Draw
+        bufid = (bufid + 1) % BUF_COUNT;
+        uint8_t *buf = (uint8_t *)(f.buf + f.pitch * f.pheight * bufid);
+        for (uint32_t y = 0; y < f.pheight; y++)
+        for (uint32_t x = 0; x < f.pwidth; x++) {
+            buf[y * f.pitch + x * 3 + 2] =
+            buf[y * f.pitch + x * 3 + 1] =
+            buf[y * f.pitch + x * 3 + 0] = 240;
+        }
+        print_init(buf, f.pwidth, f.pheight, f.pitch);
+        printf("\n%u application%s, %u gamepad%s\n------------\n\n",
+            appcount, appcount == 1 ? "" : "s",
+            count, count == 1 ? "" : "s");
+        for (uint8_t i = 0; i != appcount; i++)
+            printf("%c  %s\n", (i == selappidx ? '*' : ' '), appnames[i]);
+        set_virtual_offs(0, bufid * f.pheight);
+        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+    } while (!selected);
+
+    // Load selected application
+    // TODO: Directly load from file system to memory
+    uint8_t *start_file = (uint8_t *)0x5000000;
+    snprintf(path_buf, sizeof path_buf, "/app/%s/start", appnames[selappidx]);
+    FIL file;
+    fr = f_open(&file, path_buf, FA_READ);
+    if (fr != FR_OK) {
+        printf("\n\n! Cannot open file %s: error %d\n", path_buf, (int32_t)fr);
+        wait(3000000);
+        goto reselect;
+    }
+    UINT fsz = f_size(&file);
+    UINT bread;
+    f_read(&file, start_file, fsz, &bread);
+    f_close(&file);
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
@@ -474,8 +524,8 @@ void kernel_main()
     _enable_mmu((uint32_t)mm_user);
     // Client for domain 1, Manager for domain 0
 
-    load_elf(user_c_a_out);
-    const elf_ehdr *ehdr = (const elf_ehdr *)user_c_a_out;
+    load_elf(start_file);
+    const elf_ehdr *ehdr = (const elf_ehdr *)start_file;
 
     _set_domain_access((1 << 2) | 3);
     //_enter_user_mode();
