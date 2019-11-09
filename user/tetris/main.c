@@ -438,6 +438,8 @@ void overlay_update()
         game_init();
     } else if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
         // Back
+        last_menu_sel = menu_sel;
+        menu_sel_time = T = 0;
         screen = SCR_MENU;
         particle_count = 0; // Clear particles
     }

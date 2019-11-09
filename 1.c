@@ -29,7 +29,10 @@ struct fb {
 };
 
 struct fb f;
-static uint8_t gbuf[256 * 256 * 8];
+
+static volatile bool new_frame = false;
+static volatile uint8_t bufid = 0;
+#define BUF_COUNT   4
 
 void wait(uint32_t ticks)
 {
@@ -136,9 +139,16 @@ uint32_t get_max_clock_rate()
 
 void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
 {
+    // TODO: Handle bounced instructions from FPU (ARM ARM p. C2-26)
+    uint32_t r14;
+    __asm__ __volatile__ ("mov %0, r14" : "=g"(r14));
+    r14 -= 4;
     _set_domain_access((3 << 2) | 3);
     DSB();
-    printf("Undefined Instruction\n");
+    print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
+        f.pwidth, f.pheight, f.pitch);
+    set_virtual_offs(0, bufid * f.pheight);
+    printf("Undefined Instruction %x\n", r14);
     DMB();
     while (1) { murmur(2); wait(1000000); }
 }
@@ -147,6 +157,9 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
 {
     _set_domain_access((3 << 2) | 3);
     DSB();
+    print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
+        f.pwidth, f.pheight, f.pitch);
+    set_virtual_offs(0, bufid * f.pheight);
     printf("Undefined Handler\n");
     DMB();
     while (1) { murmur(3); wait(1000000); }
@@ -199,7 +212,9 @@ void __attribute__((interrupt("ABORT"))) _int_pfabort()
 {
     _set_domain_access((3 << 2) | 3);
     DSB();
-    set_virtual_offs(0, 0);
+    print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
+        f.pwidth, f.pheight, f.pitch);
+    set_virtual_offs(0, bufid * f.pheight);
     printf("Prefetch Abort\n");
     DMB();
     while (1) { murmur(5); wait(1000000); }
@@ -211,7 +226,9 @@ void __attribute__((interrupt("ABORT"))) _int_dabort()
     __asm__ __volatile__ ("mov %0, lr" : "=g"(lr));
     _set_domain_access((3 << 2) | 3);
     DSB();
-    set_virtual_offs(0, 0);
+    print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
+        f.pwidth, f.pheight, f.pitch);
+    set_virtual_offs(0, bufid * f.pheight);
     printf("Data Abort at %x\n", lr);
     DMB();
     while (1) {
@@ -229,6 +246,7 @@ void draw()
     static uint32_t frm = 0, t0 = UINT32_MAX, t;
     if (t0 == UINT32_MAX) t0 = get_time();
 
+    uint8_t *gbuf = (uint8_t *)f.buf;
     for (uint32_t y = 0; y < f.pheight; y++)
     for (uint32_t x = 0; x < f.pwidth; x++) {
         gbuf[y * f.pitch + x * 3 + 2] =
@@ -304,10 +322,6 @@ void load_program(const elf_ehdr *ehdr, const elf_phdr *program)
     memcpy((void *)program->vaddr, buf + program->offs, program->filesz);
     memset((void *)program->vaddr + program->filesz, 0, empty_len);
 }
-
-static volatile bool new_frame = false;
-static volatile uint8_t bufid = 0;
-#define BUF_COUNT   4
 
 void timer3_handler(void *_unused)
 {
@@ -511,6 +525,8 @@ reselect:
     UINT bread;
     f_read(&file, start_file, fsz, &bread);
     f_close(&file);
+    printf("\nTotal %u (%u) bytes, ready to go\n", bread, fsz);
+    wait(3000000);
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
