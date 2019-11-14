@@ -10,6 +10,7 @@ edition = "2018"
 
 [target.x86_64-apple-darwin.dependencies]
 libc = "0.2"
+glfw = "0.34.0"
 
 [features]
 default = []

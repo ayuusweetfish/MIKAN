@@ -55,16 +55,16 @@ static inline void pix(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b)
 
 static inline void pix_semi(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b)
 {
-    buf[y][x][2] += ((r - buf[y][x][2]) >> 2) * 3;
-    buf[y][x][1] += ((g - buf[y][x][1]) >> 2) * 3;
-    buf[y][x][0] += ((b - buf[y][x][0]) >> 2) * 3;
+    buf[y][x][2] += (((int16_t)r - buf[y][x][2]) * 3) >> 2;
+    buf[y][x][1] += (((int16_t)g - buf[y][x][1]) * 3) >> 2;
+    buf[y][x][0] += (((int16_t)b - buf[y][x][0]) * 3) >> 2;
 }
 
 static inline void pix_alpha(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    buf[y][x][2] += ((uint16_t)(r - buf[y][x][2]) * a) >> 8;
-    buf[y][x][1] += ((uint16_t)(g - buf[y][x][1]) * a) >> 8;
-    buf[y][x][0] += ((uint16_t)(b - buf[y][x][0]) * a) >> 8;
+    buf[y][x][2] += (((int16_t)r - buf[y][x][2]) * a) >> 8;
+    buf[y][x][1] += (((int16_t)g - buf[y][x][1]) * a) >> 8;
+    buf[y][x][0] += (((int16_t)b - buf[y][x][0]) * a) >> 8;
 }
 
 static inline void lineh(
