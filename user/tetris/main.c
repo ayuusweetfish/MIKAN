@@ -46,18 +46,14 @@ static void game_draw();
 static void overlay_init();
 static void overlay_draw();
 
+#define btn(__b)    (!!(b0 & (__b)))
+#define btnp(__b)   ((b0 & (__b)) && !(b1 & (__b)))
+
 static inline void pix(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b)
 {
     buf[y][x][2] = r;
     buf[y][x][1] = g;
     buf[y][x][0] = b;
-}
-
-static inline void pix_semi(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b)
-{
-    buf[y][x][2] += (((int16_t)r - buf[y][x][2]) * 3) >> 2;
-    buf[y][x][1] += (((int16_t)g - buf[y][x][1]) * 3) >> 2;
-    buf[y][x][0] += (((int16_t)b - buf[y][x][0]) * 3) >> 2;
 }
 
 static inline void pix_alpha(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
@@ -178,14 +174,14 @@ static void menu_update()
 
     uint8_t m0 = menu_sel;
 
-    if ((b0 & BUTTON_DOWN) && !(b1 & BUTTON_DOWN)) menu_sel = (menu_sel + 1) % 3;
-    if ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)) menu_sel = (menu_sel + 2) % 3;
-    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
+    if (btnp(BUTTON_DOWN)) menu_sel = (menu_sel + 1) % 3;
+    if (btnp(BUTTON_UP)) menu_sel = (menu_sel + 2) % 3;
+    if (btnp(BUTTON_CRO)) {
         screen = SCR_GAME;
         mode = menu_sel;
         game_init();
     }
-    if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
+    if (btnp(BUTTON_CIR)) {
         uint16_t x = mrand() % 128 + 64;
         uint16_t y = mrand() % 128 + 64;
         for (uint8_t i = 0; i < 64; i++)
@@ -250,8 +246,8 @@ static void game_update()
     T++;
 
     int32_t hor = 0;
-    if (b0 & BUTTON_LEFT) hor -= 1;
-    if (b0 & BUTTON_RIGHT) hor += 1;
+    if (btn(BUTTON_LEFT)) hor -= 1;
+    if (btn(BUTTON_RIGHT)) hor += 1;
     if (hor != 0) {
         if (hor_hold == 0 || (hor_hold >= 20 && hor_hold % 2 == 0))
             tetris_hor(hor);
@@ -261,18 +257,16 @@ static void game_update()
     }
     last_hor = hor;
 
-    if (b0 & BUTTON_DOWN) {
+    if (btn(BUTTON_DOWN)) {
         if (drop_hold++ % 2 == 0) tetris_drop();
     } else {
         drop_hold = 0;
     }
 
-    if (((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) ||
-        ((b0 & BUTTON_UP) && !(b1 & BUTTON_UP)))
-        tetris_rotate(+1);
-    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) tetris_rotate(-1);
-    if ((b0 & BUTTON_SQR) && !(b1 & BUTTON_SQR)) tetris_harddrop();
-    if ((b0 & BUTTON_TRI) && !(b1 & BUTTON_TRI)) tetris_hold();
+    if (btnp(BUTTON_CIR) || btnp(BUTTON_UP)) tetris_rotate(+1);
+    if (btnp(BUTTON_CRO)) tetris_rotate(-1);
+    if (btnp(BUTTON_SQR)) tetris_harddrop();
+    if (btnp(BUTTON_TRI)) tetris_hold();
 
     uint32_t action = tetris_tick();
     if (action & TETRIS_LOCKDOWN) {
@@ -341,8 +335,9 @@ static inline void draw_mino_ghost(uint8_t row, uint8_t col, uint8_t t)
     uint16_t y = MATRIX_Y1 - (row + 1) * MINO_W;
     for (int i = 0; i < MINO_W; i++)
     for (int j = 0; j < MINO_W; j++)
-        pix_semi(x + i, y + j,
-            MINO_COLOURS[t][0] / 2, MINO_COLOURS[t][1] / 2, MINO_COLOURS[t][2] / 2);
+        pix_alpha(x + i, y + j,
+            MINO_COLOURS[t][0] / 2, MINO_COLOURS[t][1] / 2, MINO_COLOURS[t][2] / 2,
+            192);
 }
 
 static inline void draw_matrix()
@@ -432,11 +427,11 @@ static void game_draw()
 
 void overlay_update()
 {
-    if ((b0 & BUTTON_CRO) && !(b1 & BUTTON_CRO)) {
+    if (btnp(BUTTON_CRO)) {
         // Restart
         screen = SCR_GAME;
         game_init();
-    } else if ((b0 & BUTTON_CIR) && !(b1 & BUTTON_CIR)) {
+    } else if (btnp(BUTTON_CIR)) {
         // Back
         last_menu_sel = menu_sel;
         menu_sel_time = T = 0;
