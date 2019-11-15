@@ -374,10 +374,10 @@ void kernel_main()
 
     // Set up framebuffer
     static struct fb f_volatile __attribute__((section(".bss.dmem"), aligned(16))) = { 0 };
-    f_volatile.pwidth = 256;
-    f_volatile.pheight = 256;
-    f_volatile.vwidth = 256;
-    f_volatile.vheight = 256 * BUF_COUNT;
+    f_volatile.pwidth = 400;
+    f_volatile.pheight = 240;
+    f_volatile.vwidth = 400;
+    f_volatile.vheight = 240 * BUF_COUNT;
     f_volatile.bpp = 24;
     send_mail(((uint32_t)&f_volatile + 0x40000000) >> 4, MAIL0_CH_FB);
     recv_mail(MAIL0_CH_FB);
@@ -526,7 +526,7 @@ reselect:
     f_read(&file, start_file, fsz, &bread);
     f_close(&file);
     printf("\nTotal %u (%u) bytes, ready to go\n", bread, fsz);
-    wait(3000000);
+    //wait(3000000);
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)

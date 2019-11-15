@@ -92,9 +92,9 @@ void emit_dma(
 {
     DMB(); DSB();
     uint8_t *_dst = dst, *_src = src;
-    spitch = 256 * 3;
-    rowsize = 256 * 3;
-    nrows = 256;
+    spitch = 400 * 3;
+    rowsize = 400 * 3;
+    nrows = 240;
     // XXX: Manually cleaning data cache...
     /*_clean_data_cache();
     for (uint32_t i = 0; i < nrows; i++, _dst += dpitch, _src += spitch)
