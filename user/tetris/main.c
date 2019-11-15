@@ -234,6 +234,8 @@ static const uint8_t MINO_COLOURS[7][3] = {
 
 static void game_init()
 {
+    particle_count = 0; // Clear particles
+
     T = 0;
     level = 1;
 
