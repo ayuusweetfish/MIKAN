@@ -89,7 +89,7 @@ static inline void blit(uint8_t i)
             r1 = 192, g1 = 240;
             r2 = 96, g2 = 128;
         }
-        if (y0 > 0) pix(x0, y0 + 1, r2, g2, b2);
+        if (y0 < 255) pix(x0, y0 + 1, r2, g2, b2);
         if (x0 < 255) pix(x0 + 1, y0, r2, g2, b2);
         pix(x0, y0, r1, g1, b1);
     }
