@@ -105,7 +105,7 @@ static inline void text_xcen(uint16_t x, uint16_t y, const char *str)
 
 
 static const uint8_t bg[] = {
-    // ffmpeg -f rawvideo -pix_fmt rgb24 - -i background01.png | xxd -i > bg.h
+    // ffmpeg -f rawvideo -pix_fmt rgb24 - -i background03.png | xxd -i > bg.h
     #include "bg.h"
 };
 
