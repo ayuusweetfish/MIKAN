@@ -418,6 +418,7 @@ void kernel_main()
         printf("Current clock rate %u\n", get_clock_rate(i));
     }
     set_clock_rate(3, (get_min_clock_rate(3) + get_max_clock_rate(3)) / 2);
+    set_clock_rate(4, 500000000);
 
     DMB();
     sdInit();
@@ -526,7 +527,7 @@ reselect:
     f_read(&file, start_file, fsz, &bread);
     f_close(&file);
     printf("\nTotal %u (%u) bytes, ready to go\n", bread, fsz);
-    //wait(3000000);
+    wait(1000000);
 
     // Set domain to 1
     // Set AP = 0b01 (privileged access only) (ARM ARM p. B4-9/B4-27)
@@ -548,6 +549,7 @@ reselect:
     _enter_user_code(ehdr->entry);
 
     _set_domain_access((3 << 2) | 3);
+    //uint32_t T1 = get_time();
     while (1) {
         if (new_frame) {
             // TODO: Optionally skip a frame
@@ -559,6 +561,12 @@ reselect:
                 //_set_domain_access((3 << 2) | 3);
                 emit_dma((void *)(f.buf + f.pitch * f.pheight * bufid),
                     f.pitch, ret, f.pwidth * 3, f.pwidth * 3, f.pheight);
+                print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
+                    f.pwidth, f.pheight, f.pitch);
+                set_virtual_offs(0, bufid * f.pheight);
+                /*uint32_t T0 = get_time();
+                printf("%d\n", T1 - T0);
+                T1 = T0;*/
                 new_frame = false;
             }
         }
