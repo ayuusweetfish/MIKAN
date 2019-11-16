@@ -115,7 +115,7 @@ static uint8_t score[2];
 #define PLAYGROUND_FRAME 20
 
 static inline void playground_draw() {
-     int d = 1;
+     int d = 3;
      int l = 5;
      int s = 3;
      rectb(PLAYGROUND_FRAME, PLAYGROUND_FRAME, TEX_W - 2 * PLAYGROUND_FRAME, TEX_H - 2 * PLAYGROUND_FRAME, 255, 255, 255, d);
