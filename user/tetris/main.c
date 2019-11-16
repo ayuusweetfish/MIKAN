@@ -234,6 +234,8 @@ static const uint8_t MINO_COLOURS[7][3] = {
 
 static void game_init()
 {
+    particle_count = 0; // Clear particles
+
     T = 0;
     level = 1;
 
@@ -462,7 +464,8 @@ void bg_draw()
 {
     for (uint16_t y = 0; y < 240; y++)
     for (uint16_t x = 0; x < 400; x++)
-        memcpy(buf[y][x], bg + ((x * 256 / 400) + ((y + 80) * 256 / 400) * 256) * 3, 3);
+    for (uint8_t ch = 0; ch < 3; ch++)
+        buf[y][x][ch] = bg[((x * 256 / 400) + ((y + 80) * 256 / 400) * 256) * 3 + ch];
 }
 
 void init()
