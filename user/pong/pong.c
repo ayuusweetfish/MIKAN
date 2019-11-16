@@ -1,13 +1,14 @@
 #include "api.h"
-#define WIN_W 400
-#define WIN_H 240
+#include <string.h>
+#define TEX_W 400
+#define TEX_H 240
 
-static uint8_t buf[WIN_H][WIN_W][3];
+static uint8_t buf[TEX_H][TEX_W][3];
   
 static inline void pix(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b) {
      buf[y][x][0] = r;
      buf[y][x][1] = g; 
-     buf[y][x][3] = b;
+     buf[y][x][2] = b;
 }
 
 static inline void pix_alpha(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
@@ -19,50 +20,50 @@ static inline void pix_alpha(uint16_t x, uint16_t y, uint8_t r, uint8_t g, uint8
 
 static inline void rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b) {
      int x0, y0;
-     w--; h--;
-     for (;w >= 0; w--) if ((x0 = x + w) >= 0 && x0 < WIN_W)
-     for (;h >= 0; h--) if ((y0 = y + w) >= 0 && y0 < WIN_H)
-	 pix(x0, y0, r, g, b)
+     for (int w0 = 0; w0 < w; w0++) if ((x0 = x + w0) >= 0 && x0 < TEX_W)
+     for (int h0 = 0; h0 < h; h0++) if ((y0 = y + h0) >= 0 && y0 < TEX_H)
+	  pix(x0, y0, r, g, b);
+     
 }
 
-static inline void linev(uint16_t x, uint16_t y1, uint16_t y2, uint8_t r, uint8_t g, uint8_t b, uint8_t d = 1) {
+static inline void linev(uint16_t x, uint16_t y1, uint16_t y2, uint8_t r, uint8_t g, uint8_t b, uint8_t d) {
      rect(x, y1, d, y2 - y1 + 1, r, g, b);
 }
 
-static inline void lineh(uint16_t x1, uint16_t x2, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t d = 1) {
+static inline void lineh(uint16_t x1, uint16_t x2, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t d) {
      rect(x1, y, x2 - x1 + 1, d, r, g, b);
 }
 
-static inline void dashlinev(uint16_t x, uint16_t y1, uint16_t y2, uint8_t r, uint8_t g, uint8_t b, uint8_t d = 1, uint8_t l = 5, uint8_t s = 3) {
+static inline void dashlinev(uint16_t x, uint16_t y1, uint16_t y2, uint8_t r, uint8_t g, uint8_t b, uint8_t d, uint8_t l, uint8_t s) {
      uint16_t y_next;
      while ((y_next = y1 + l + s) <= y2) {
 	  rect(x, y1, d, l, r, g, b);
 	  y1 = y_next;
      }
-     linev(x, y1, y2, r, g, b, d)
+     linev(x, y1, y2, r, g, b, d);
 }
 
-static inline void dashlineh(uint16_t x1, uint16_t x2, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t d = 1, uint8_t l = 5, uint8_t s = 3) {
+static inline void dashlineh(uint16_t x1, uint16_t x2, uint16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t d, uint8_t l, uint8_t s) {
      uint16_t x_next;
      while ((x_next = x1 + l + s) <= x2) {
 	  rect(x1, y, l, d, r, g, b);
 	  x1 = x_next;
      }
-     lineh(x1, x2, y, r, g, b, d)
+     lineh(x1, x2, y, r, g, b, d);
 }
 
-static inline void rectb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b, int8_t d = 1) {
+static inline void rectb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b, int8_t d) {
      lineh(x, x + w - 1, y, r, g, b, d);
      lineh(x, x + w - 1, y + h - d, r, g, b, d);
      linev(x, y + d, y + h - d - 1, r, g, b, d);
      linev(x + w - d, y + d, y + h - d - 1, r, g, b, d);
 }
 
-static inline void rectdb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b, int8_t d = 1, uint8_t l = 5, uint8_t = 3) {
-     dashlineh(x, x + w - 1, y, r, g, b, d);
-     dashlineh(x, x + w - 1, y + h - d, r, g, b, d);
-     dashlinev(x, y + d, y + h - d - 1, r, g, b, d);
-     dashlinev(x + w - d, y + d, y + h - d - 1, r, g, b, d);
+static inline void rectdb(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t r, uint8_t g, uint8_t b, int8_t d, uint8_t l, uint8_t s) {
+     dashlineh(x, x + w - 1, y, r, g, b, d, l, s);
+     dashlineh(x, x + w - 1, y + h - d, r, g, b, d, l, s);
+     dashlinev(x, y + d, y + h - d - 1, r, g, b, d, l, s);
+     dashlinev(x + w - d, y + d, y + h - d - 1, r, g, b, d, l, s);
 }
 
 #define CHAR_W 7
@@ -115,10 +116,11 @@ static uint8_t score[2];
 
 static inline void playground_draw() {
      int d = 1;
-     rectb(PLAYGROUND_FRAME, PLAYGROUND_FRAME, WIN_W - 2 * PLAYGROUND_FRAME, WIN_H - 2 * PLAYGROUND_FRAME, 255, 255, 255, d);
-     dashlinev((int)(WIN_W / 2), PLAYGROUND_FRAME + d, WIN_H - PLAYGROUND_FRAME - d - 1, 255, 255, 255, d);
+     int l = 5;
+     int s = 3;
+     rectb(PLAYGROUND_FRAME, PLAYGROUND_FRAME, TEX_W - 2 * PLAYGROUND_FRAME, TEX_H - 2 * PLAYGROUND_FRAME, 255, 255, 255, d);
+     dashlinev((int)(TEX_W / 2), PLAYGROUND_FRAME + d, TEX_H - PLAYGROUND_FRAME - d - 1, 255, 255, 255, d, l, s);
 }
-
 
 
 static struct pongball {
@@ -143,8 +145,8 @@ static struct board {
 #define BOARD_V_MAX 1
 
 static inline void ball_init(int8_t server) {
-     ball.x = (int)(WIN_W / 2);
-     ball.y = (int)(WIN_H / 2);
+     ball.x = (int)(TEX_W / 2);
+     ball.y = (int)(TEX_H / 2);
      ball.vx = INIT_V_X * server;
      ball.vy = (float)mrand() / 0x80000000u * INIT_MAX_V_Y;
      ball.r = 255; ball.g = 255; ball.b = 255;
@@ -153,23 +155,22 @@ static inline void ball_init(int8_t server) {
 
 static inline void ball_draw() {
      int x0, y0;
-     for (int xi = -ball.radius; xi <= ball.radius; xi++) if ((x0 = ball.x +xi) >= 0 && x0 < WIN_W) 
-     for (int yi = -ball.radius; yi <= ball.radius; yi++) if ((y0 = ball.y +yi) >= 0 && y0 < WIN_H) 
+     for (int xi = -ball.radius; xi <= ball.radius; xi++) if ((x0 = ball.x +xi) >= 0 && x0 < TEX_W) 
+     for (int yi = -ball.radius; yi <= ball.radius; yi++) if ((y0 = ball.y +yi) >= 0 && y0 < TEX_H) 
          if (xi * xi + yi * yi <= (int)(ball.radius * ball.radius))
 	      pix(x0, y0, ball.r, ball.g, ball.b);
 }
 
 // TODO
 static inline void board_init() {
-     boards[0].y = (int)(WIN_H / 2);
-     boards[1].y = (int)(WIN_W / 2);
-     boards[0].x = 
+     boards[0].y = (int)(TEX_H / 2);
+     boards[1].y = (int)(TEX_W / 2);
      
 }
      
 static inline void board_update() {
      uint32_t b = buttons();
-     float v1 = { 0, 0 };
+     float v1[2] = { 0, 0 };
      if (ball.y < boards[0].y - (boards[0].half_h >> 2)) v1[0] -= 1;
      if (ball.y > boards[0].y + (boards[0].half_h >> 2)) v1[0] += 1;
      if (b & BUTTON_LEFT) v1[1] -= 1;
@@ -184,6 +185,26 @@ static inline void board_update() {
      boards[0].y = (int)(boards[0].y + boards[0].v * BOARD_V_MAX + 0.5f);
      boards[1].y = (int)(boards[1].y + boards[1].v * BOARD_V_MAX + 0.5f);
 }
+
+
+// TODO
+void init() {
+     board_init();
+     ball_init(LEFT_SERVER);
+}
+
+void update() {
+
+}
+
+void *draw() {
+     playground_draw();
+     return (void *)buf;
+}
+
+
+
+
 
 
 // print('\n'.join(map(lambda x: ''.join(map(chr, range(32 + 16 * x, 48 + 16 * x))), range(6))))
