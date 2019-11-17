@@ -429,7 +429,7 @@ static inline void game_update() {
 static inline void gameover_update() {
      cls();
      msg = (status & MOD_PVP) ? ((status & OVL_WIN) ? "RIGHT WIN!" : "LEFT WIN!") : ((status & OVL_WIN) ? "YOU WIN!" : "YOU LOSE!");
->>>>>>> 3331817e342c4522b67273723028be773dab0b48
+
 }
 
 static inline void game_draw() {
