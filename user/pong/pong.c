@@ -380,35 +380,19 @@ static void menu_draw() {
 // TODO
 void init() {
      msg = "";
-<<<<<<< HEAD
+
      score[0] = 0; score[1] = 0;
      board_init();
      status = SCR_MENU;
      ball_init(RIGHT_SERVER);
 }
 
-static inline void game_update() {
-     if (status & STA_RUN) {
-	  board_update();
-	  ball_update();
-     } else {
-	  board_update();
-	  if (btn(BUTTON_CIR)) {
-	       status |= STA_RUN;
-	       msg = "";
-	  }
-     }
-}
 
 
 static inline void gameover_update() {
      cls();
      msg = (status & MOD_PVP) ? ((status & OVL_WIN) ? "RIGHT WIN!" : "LEFT WIN!") : ((status & OVL_WIN) ? "YOU WIN!" : "YOU LOSE!");
      if (b0) init();
-=======
-     board_init();
-     status = SCR_MENU;
-     ball_init(RIGHT_SERVER);
 }
 
 static inline void game_update() {
@@ -422,14 +406,6 @@ static inline void game_update() {
 	       msg = "";
 	  }
      }
-}
-
-
-
-static inline void gameover_update() {
-     cls();
-     msg = (status & MOD_PVP) ? ((status & OVL_WIN) ? "RIGHT WIN!" : "LEFT WIN!") : ((status & OVL_WIN) ? "YOU WIN!" : "YOU LOSE!");
-
 }
 
 static inline void game_draw() {
