@@ -36,8 +36,8 @@ void *draw() {
   alpha = 100;
   line_aa(40, 40, 100, 120);
   line(40, 60, 100, 140);
-  circr(80, 80, 19);
-  ellipser(100, 100, 20, 30);
+  circr_aa(100, 80, 50);
+  circr(100+10, 80, 50);
 
   
   return (void *)buf;

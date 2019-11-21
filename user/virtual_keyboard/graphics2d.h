@@ -350,6 +350,9 @@ inline void circr_aa(int16_t x, int16_t y, uint16_t r) {
   int16_t yi = r;
   int16_t xend = (int)(r * M_SQRT1_2) + 1;
   float d = 1.25 - r;
+  float e = 0;
+  float r2r = 1.0f / (r << 1);
+  uint8_t alpha_store = alpha;
   if (r != 1) {
     pix(x, y + r - 1);
     pix(x, y - r + 1);
@@ -358,7 +361,8 @@ inline void circr_aa(int16_t x, int16_t y, uint16_t r) {
   } else {
     pix(x, y);
   }
-  while (xi < xend) {
+  while (xi < xend - 1) {
+    alpha = (int)(alpha_store * (1 - e) + 0.5f);
     pix(x + xi - 1, y + yi - 1);
     pix(x + yi - 1, y + xi - 1);
     pix(x - xi + 1, y - yi + 1);
@@ -367,6 +371,15 @@ inline void circr_aa(int16_t x, int16_t y, uint16_t r) {
     pix(x + yi - 1, y - xi + 1);
     pix(x - xi + 1, y + yi - 1);
     pix(x - yi + 1, y + xi - 1);
+    alpha = (int)(alpha_store * e + 0.5f);
+    pix(x + xi - 1, y + yi - 2);
+    pix(x + yi - 2, y + xi - 1);
+    pix(x - xi + 1, y - yi + 2);
+    pix(x - yi + 2, y - xi + 1);
+    pix(x + xi - 1, y - yi + 2);
+    pix(x + yi - 2, y - xi + 1);
+    pix(x - xi + 1, y + yi - 2);
+    pix(x - yi + 2, y + xi - 1);
     if (d < 0) {
       d = d + ((int)xi << 1) + 3;
     }
@@ -375,7 +388,26 @@ inline void circr_aa(int16_t x, int16_t y, uint16_t r) {
       yi--;
     }
     xi++;
+    e = ((xi << 1) + 1) * r2r;
   }
+  alpha = (int)(alpha_store * (1 - e) + 0.5f);
+  pix(x + xi - 1, y + yi - 1);
+  pix(x + yi - 1, y + xi - 1);
+  pix(x - xi + 1, y - yi + 1);
+  pix(x - yi + 1, y - xi + 1);
+  pix(x + xi - 1, y - yi + 1);
+  pix(x + yi - 1, y - xi + 1);
+  pix(x - xi + 1, y + yi - 1);
+  pix(x - yi + 1, y + xi - 1);
+  alpha = (int)(alpha_store * e + 0.5f);
+  pix(x + xi - 1, y + yi - 2);
+  
+  pix(x - xi + 1, y - yi + 2);
+  
+  pix(x + xi - 1, y - yi + 2);
+  
+  pix(x - xi + 1, y + yi - 2);
+  alpha = alpha_store;
 }
 
 inline void ellipse(int16_t x, int16_t y, uint16_t a, uint16_t b) {
