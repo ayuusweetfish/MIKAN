@@ -80,6 +80,12 @@ RGB palette[16] = {
 		   { 0xde, 0xee, 0xd6 }
 };
 
+RGB *color = palette + 15;
 RGB *bcolor = palette;
-RGB *fcolor = palette + 15;
 
+uint8_t alpha = 255;
+uint8_t balpha = 255;
+
+uint8_t font_data[CHAR_W * CHAR_H * 16 * 6] = {
+#include "font.h"
+};

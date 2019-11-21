@@ -1,27 +1,45 @@
-#include "graphics2d.h"
 #include "graphics2d_api.h"
+// #include "../../fatfs/ff.h"
+
+//static FATFS fs;
+// static DIR dir;
+// static FILINFO finfo;
+// static FRESULT fr;
 
 void init() {
   clip_r();
   writemask(false);
   usemask(false);
+  //  fr = f_mount(&fs, "", 1);
+  
 }
 
 void update() {
-  T = (T+1) % 500;
+  T = (T+1)%300;
+  
 }
 
 void *draw() {
-  
-  cls(palette+6);
-  rectdb(50, 50, 60, 40, palette+8, 2, 3, 5);
-
+  alpha = 255;
+  bcolor = palette + 6;
+  cls();
+  color = palette + 8;
+  rectdb(50, 50, 60, 40, 2, 3, 5);
   RGB m = {200,200,200};
-  rectdb_a(130, 50, 60, 40, &m, 2, 3, 5, 100);
+  color = &m;
+  alpha = 100;
+  rectdb(130, 50, 60, 40,  2, 3, 5);
+  ellipseb(T-100, 130, 28, 60, 1);
+  alpha = 255;
+  text_char(100, 100, 'a');
+  color = palette+14;
+  alpha = 100;
+  line_aa(40, 40, 100, 120);
+  line(40, 60, 100, 140);
+  circr(80, 80, 19);
+  ellipser(100, 100, 20, 30);
 
-  ellipseb_a(T-100, 130, 28, 60, &m, 1, 120);
-
-  round_rectb(T-100, 100, 50, 80, 8, palette+14, 5);
+  
   return (void *)buf;
 }
 
