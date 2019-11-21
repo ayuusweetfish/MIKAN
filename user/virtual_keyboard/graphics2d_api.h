@@ -41,6 +41,8 @@ extern inline void circb(int16_t x, int16_t y, uint16_t r, uint8_t d);
 
 extern inline void circr(int16_t x, int16_t y, uint16_t r);
 
+extern inline void circr_aa(int16_t x, int16_t y, uint16_t r);
+
 extern inline void ellipse(int16_t x, int16_t y, uint16_t a, uint16_t b);
 
 extern inline void ellipseb(int16_t x, int16_t y, uint16_t a, uint16_t b, uint8_t d);

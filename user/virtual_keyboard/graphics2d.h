@@ -235,9 +235,9 @@ inline void line_aa(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
 	e = e - 1;
 	ry1 += flag;
       }
-      alpha = (1 - e) * alpha_store;
+      alpha = (int)((1 - e) * alpha_store + 0.5f);
       pix(rx1, ry1);
-      alpha = e * alpha_store;
+      alpha = (int)(e * alpha_store + 0.5f);
       pix(rx1, ry1 + flag);
       rx1++;
     }
@@ -254,17 +254,15 @@ inline void line_aa(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
 	e = e - 1;
 	rx1 += flag;
       }
-      alpha = (1 - e) * alpha_store;
+      alpha = (int)((1 - e) * alpha_store + 0.5f);
       pix(rx1, ry1);
-      alpha = e * alpha_store;
+      alpha = (int)(e * alpha_store + 0.5f);
       pix(rx1 + flag, ry1);
       ry1++;
     }
     alpha = alpha_store;
   }
 }
-
-
 
 inline void dashlinev(int16_t x, int16_t y1, int16_t y2,  uint8_t d, uint8_t l, uint8_t s) {
      uint16_t y_next;
@@ -315,6 +313,39 @@ inline void circb(int16_t x, int16_t y, uint16_t r, uint8_t d) {
 }
 
 inline void circr(int16_t x, int16_t y, uint16_t r) {
+  int16_t xi = 2;
+  int16_t yi = r;
+  int16_t xend = (int)(r * M_SQRT1_2) + 1;
+  float d = 1.25 - r;
+  if (r != 1) {
+    pix(x, y + r - 1);
+    pix(x, y - r + 1);
+    pix(x + r - 1, y);
+    pix(x - r + 1, y);
+  } else {
+    pix(x, y);
+  }
+  while (xi < xend) {
+    pix(x + xi - 1, y + yi - 1);
+    pix(x + yi - 1, y + xi - 1);
+    pix(x - xi + 1, y - yi + 1);
+    pix(x - yi + 1, y - xi + 1);
+    pix(x + xi - 1, y - yi + 1);
+    pix(x + yi - 1, y - xi + 1);
+    pix(x - xi + 1, y + yi - 1);
+    pix(x - yi + 1, y + xi - 1);
+    if (d < 0) {
+      d = d + ((int)xi << 1) + 3;
+    }
+    else {
+      d = d + ((int)(xi - yi) << 1) + 5;
+      yi--;
+    }
+    xi++;
+  }
+}
+
+inline void circr_aa(int16_t x, int16_t y, uint16_t r) {
   int16_t xi = 2;
   int16_t yi = r;
   int16_t xend = (int)(r * M_SQRT1_2) + 1;
