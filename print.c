@@ -52,6 +52,7 @@ void _putchar(char ch)
         return;
     }
 
+    uspi_EnterCritical();
     uint16_t x0 = (ch - 32) * CHAR_W;
     uint16_t tx = x0 % TEX_W;
     uint16_t ty = x0 / TEX_W * CHAR_H;
@@ -73,6 +74,7 @@ void _putchar(char ch)
         x = 0;
         if ((y += CHAR_H) > h - CHAR_H) reset_vert();
     }
+    uspi_LeaveCritical();
 }
 
 static uint8_t font_data[CHAR_W * CHAR_H * 16 * 6] = {

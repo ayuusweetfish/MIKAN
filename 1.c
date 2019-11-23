@@ -362,7 +362,7 @@ void kernel_main()
 
     // Prepare TLB
     for (uint32_t i = 0; i < 4096; i++) {
-        mmu_table_section(mm_sys, i << 20, i << 20, (i < 1 ? (8 | 4) : 0));
+        mmu_table_section(mm_sys, i << 20, i << 20, (i < 64 ? (8 | 4) : 0));
     }
     // Disable buffering/caching on .bss.dmem(qwq) sections
     uint32_t dmem_start = ((uint32_t)&_bss_dmem_begin) >> 20;
@@ -483,6 +483,7 @@ void kernel_main()
 reselect:
     selected = false;
     do {
+        printf("Doing stuff\n");
         // Update
         b1 = b0;
         b0 = _buttons;
@@ -502,9 +503,10 @@ reselect:
             buf[y * f.pitch + x * 3 + 0] = 240;
         }
         print_init(buf, f.pwidth, f.pheight, f.pitch);
-        printf("\n%u application%s, %u gamepad%s\n------------\n\n",
+        printf("\n%u application%s, %u gamepad%s, mouse %s\n------------\n\n",
             appcount, appcount == 1 ? "" : "s",
-            count, count == 1 ? "" : "s");
+            count, count == 1 ? "" : "s",
+            USPiMouseAvailable() ? "yes" : "no");
         for (uint8_t i = 0; i != appcount; i++)
             printf("%c  %s\n", (i == selappidx ? '*' : ' '), appnames[i]);
         set_virtual_offs(0, bufid * f.pheight);

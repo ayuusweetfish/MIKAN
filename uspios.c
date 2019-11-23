@@ -162,6 +162,7 @@ void LogWrite (const char *pSource,
                unsigned    Severity,
                const char *pMessage, ...)
 {
+    uspi_EnterCritical();
     printf("[%c] %s: ", "!EWND"[Severity], pSource ? pSource : "undef");
 
     va_list arglist;
@@ -170,6 +171,7 @@ void LogWrite (const char *pSource,
     va_end(arglist);
 
     _putchar('\n');
+    uspi_LeaveCritical();
 }
 
 void uspi_assertion_failed (const char *pExpr, const char *pFile, unsigned nLine)
