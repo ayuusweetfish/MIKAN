@@ -13,6 +13,7 @@
 #endif
 
 uint8_t buf[TEX_H][TEX_W][3];
+uint8_t (*buffer)[TEX_W][3] = buf;
 
 // pix filters
 bool (*filter) (int16_t, int16_t);

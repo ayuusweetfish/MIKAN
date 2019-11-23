@@ -28,6 +28,8 @@
 
 extern uint8_t buf[TEX_H][TEX_W][3];
 
+extern uint8_t (*buffer)[TEX_W][3];
+
 // filter
 extern bool (*filter) (int16_t, int16_t);
 
@@ -99,25 +101,25 @@ inline void pix_rgba(int16_t x, int16_t y, uint8_t r, uint8_t g, uint8_t b, uint
       if (mask & WRITEMASK) {
 	maskbuf[y][x] = 255;
       } else if (mask & USEMASK) {
-	buf[y][x][2] += (((int16_t)(r) - buf[y][x][2]) * maskbuf[y][x]) >> 8;
-	buf[y][x][1] += (((int16_t)(g) - buf[y][x][1]) * maskbuf[y][x]) >> 8;
-	buf[y][x][0] += (((int16_t)(b) - buf[y][x][0]) * maskbuf[y][x]) >> 8;
+	buffer[y][x][2] += (((int16_t)(r) - buffer[y][x][2]) * maskbuf[y][x]) >> 8;
+	buffer[y][x][1] += (((int16_t)(g) - buffer[y][x][1]) * maskbuf[y][x]) >> 8;
+	buffer[y][x][0] += (((int16_t)(b) - buffer[y][x][0]) * maskbuf[y][x]) >> 8;
       } else {
-	buf[y][x][2] = r;
-	buf[y][x][1] = g;
-	buf[y][x][0] = b;
+	buffer[y][x][2] = r;
+	buffer[y][x][1] = g;
+	buffer[y][x][0] = b;
       }
     } else {
       if (mask & WRITEMASK) {
 	maskbuf[y][x] = alpha;
       } else if (mask & USEMASK) {
-	buf[y][x][2] += (((((int16_t)(r) - buf[y][x][2]) * a) >> 8) * maskbuf[y][x]) >> 8;
-	buf[y][x][1] += (((((int16_t)(g) - buf[y][x][1]) * a) >> 8) * maskbuf[y][x]) >> 8;
-	buf[y][x][0] += (((((int16_t)(b) - buf[y][x][0]) * a) >> 8) * maskbuf[y][x]) >> 8;
+	buffer[y][x][2] += (((((int16_t)(r) - buffer[y][x][2]) * a) >> 8) * maskbuf[y][x]) >> 8;
+	buffer[y][x][1] += (((((int16_t)(g) - buffer[y][x][1]) * a) >> 8) * maskbuf[y][x]) >> 8;
+	buffer[y][x][0] += (((((int16_t)(b) - buffer[y][x][0]) * a) >> 8) * maskbuf[y][x]) >> 8;
       } else {
-	buf[y][x][2] += (((int16_t)(r) - buf[y][x][2]) * a) >> 8;
-	buf[y][x][1] += (((int16_t)(g) - buf[y][x][1]) * a) >> 8;
-	buf[y][x][0] += (((int16_t)(b) - buf[y][x][0]) * a) >> 8;
+	buffer[y][x][2] += (((int16_t)(r) - buffer[y][x][2]) * a) >> 8;
+	buffer[y][x][1] += (((int16_t)(g) - buffer[y][x][1]) * a) >> 8;
+	buffer[y][x][0] += (((int16_t)(b) - buffer[y][x][0]) * a) >> 8;
       }
     }
   }
@@ -622,5 +624,15 @@ inline void text_xcen(int16_t x, int16_t y, const char *str)
     if (n > 0) text_str(x - (n * CHAR_W / 2), y, str);
 }
 
+inline void direct_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_W][3], int16_t x_t, int16_t y_t, uint8_t buf_t[TEX_H][TEX_W][3], uint16_t width, uint16_t height) {
+  uint16_t i, j; 
+  for (i = 0; i < width; i++) {
+    for (j = 0; j < height; j++) {
+      buf_t[y_t + j][x_t + i][2] = buf_f[y_f + j][x_f + i][2];
+      buf_t[y_t + j][x_t + i][1] = buf_f[y_f + j][x_f + i][1];
+      buf_t[y_t + j][x_t + i][0] = buf_f[y_f + j][x_f + i][0];
+    }
+  }
+}
 
 #endif
