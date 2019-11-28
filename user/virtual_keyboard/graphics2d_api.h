@@ -66,4 +66,6 @@ extern inline void text_xcen(int16_t x, int16_t y, const char *str);
 
 extern inline void direct_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_W][3], int16_t x_t, int16_t y_t, uint8_t buf_t[TEX_H][TEX_W][3], uint16_t width, uint16_t height);
 
+extern inline void transparent_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_W][3], int16_t x_t, int16_t y_t, uint8_t buf_t[TEX_H][TEX_W][3], uint16_t width, uint16_t height, RGB* transparent_color);
+
 #endif

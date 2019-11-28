@@ -24,7 +24,7 @@
 #define abs(__s)       ((__s < 0) ? -__s : __s)
 #define max(__a, __b)  ((__a > __b) ? __a : __b)
 #define min(__a, __b)  ((__a < __b) ? __a : __b)
-#define btn(__b)       (!!(b0 & (__b)))
+
 
 extern uint8_t buf[TEX_H][TEX_W][3];
 
@@ -67,6 +67,7 @@ extern uint32_t T;
 extern uint32_t b0, b1;
 #define btn(__b)    (!!(b0 & (__b)))
 #define btnp(__b)   ((b0 & (__b)) && !(b1 & (__b)))
+#define btnr(__b)   (!(b0 & (__b)) && (b1 & (__b)))
 
 // color
 typedef struct RGB {
@@ -180,7 +181,7 @@ inline void line(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
     flag = sgn(k);
     k = abs(k);
     di = 0.5 - k;
-    while (rx1 != rx2) {
+    while (rx1 < rx2) {
       pix(rx1, ry1);
       rx1++;
       if (di > 0) {
@@ -197,7 +198,7 @@ inline void line(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
     k = abs(k);
 
     di = 0.5 - k;
-    while (ry1 != ry2) {
+    while (ry1 < ry2) {
       pix(rx1, ry1);
       ry1++;
       if (di > 0) {
@@ -631,6 +632,22 @@ inline void direct_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_W][3]
       buf_t[y_t + j][x_t + i][2] = buf_f[y_f + j][x_f + i][2];
       buf_t[y_t + j][x_t + i][1] = buf_f[y_f + j][x_f + i][1];
       buf_t[y_t + j][x_t + i][0] = buf_f[y_f + j][x_f + i][0];
+    }
+  }
+}
+
+
+inline void transparent_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_W][3], int16_t x_t, int16_t y_t, uint8_t buf_t[TEX_H][TEX_W][3], uint16_t width, uint16_t height, RGB* transparent_color) {
+  uint16_t i, j; 
+  for (i = 0; i < width; i++) {
+    for (j = 0; j < height; j++) {
+      if ((transparent_color->r != buf_f[y_f + j][x_f + i][2]) ||
+	  (transparent_color->g != buf_f[y_f + j][x_f + i][1]) ||
+	  (transparent_color->b != buf_f[y_f + j][x_f + i][2])) {
+	buf_t[y_t + j][x_t + i][2] = buf_f[y_f + j][x_f + i][2];
+	buf_t[y_t + j][x_t + i][1] = buf_f[y_f + j][x_f + i][1];
+	buf_t[y_t + j][x_t + i][0] = buf_f[y_f + j][x_f + i][0];
+      }
     }
   }
 }

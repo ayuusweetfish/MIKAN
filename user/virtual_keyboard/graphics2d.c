@@ -63,6 +63,8 @@ RGB palette[16] = {
 		   { 0xd0, 0x46, 0x48 },
 		   // 7 city grey
 		   { 0x75, 0x71, 0x61 },
+
+
 		   // 8 blue
 		   { 0x59, 0x7d, 0xce },
 		   // 9 orange
@@ -78,7 +80,7 @@ RGB palette[16] = {
 		   // 14 yellow
 		   { 0xda, 0xd4, 0x5e },
 		   // 15 white
-		   { 0xde, 0xee, 0xd6 }
+		   { 0xdf, 0xde, 0xd6 }
 };
 
 RGB *color = palette + 15;
