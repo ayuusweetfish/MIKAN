@@ -271,21 +271,80 @@ static inline void rightkey() {
   }
 }
 
-static inline void strcut(char *buf_f, char *buf_t) {
+static inline void strcp(char *buf_f, char *buf_t) {
   int i = 0;
   for (i = 0; i < INPUTMAXLENGTH; i++) {
     buf_t[i] = buf_f[i];
-    buf_f[i] = 0;
   }
-  buf_f[i] = buf_t[i] = 0;
+  buf_t[i] = 0;
+}
+
+static inline void strclear(char *buf) {
+  for (int i = 0; i < INPUTMAXLENGTH + 1; i++) {
+    buf[i] = 0;
+  }
+}
+
+static inline void strcut(char *buf_f, char *buf_t) {
+  strcp(buf_f, buf_t);
+  strclear(buf_f);
+}
+
+#define CMD_BUFFER_DEPTH 5
+static char cmd_buffer[CMD_BUFFER_DEPTH][INPUTMAXLENGTH + 1];
+static int8_t cmd_buf_length[CMD_BUFFER_DEPTH] = { 0 };
+static int8_t cmd_cursor = -1;
+
+static inline void add_cmd(char* s, int n) {
+  char temp[INPUTMAXLENGTH + 1];
+  strcp(s, temp);
+  int i = CMD_BUFFER_DEPTH - 1;
+  while (i > 0) {
+    strcp(cmd_buffer[i - 1], cmd_buffer[i]);
+    cmd_buf_length[i] = cmd_buf_length[i - 1];
+    i--;
+  }
+  strcp(temp, cmd_buffer[0]);
+  cmd_buf_length[0] = n;
+}
+
+static inline void prev_cmd() {
+  cmd_cursor = (cmd_cursor + 1) % CMD_BUFFER_DEPTH;
+  strcp(cmd_buffer[cmd_cursor], inputbox);
+  cursor = cmd_buf_length[cmd_cursor];
+  cursor_t = T;
+}
+
+static inline void next_cmd() {
+  if (cmd_cursor != -1) {
+    cmd_cursor = ((cmd_cursor == 0) ? (CMD_BUFFER_DEPTH - 1) : (cmd_cursor - 1));
+    strcp(cmd_buffer[cmd_cursor], inputbox);
+    cursor = cmd_buf_length[cmd_cursor];
+  }
+  cursor_t = T;
 }
 
 static inline void return_str() {
+  add_cmd(inputbox, inputlength);
+  cmd_cursor = -1;
   strcut(inputbox, procbuffer);
   cursor = inputlength = 0;
   cursor_t = T;
   proc_func();
   strcut(procbuffer, outputbox);
+}
+
+static inline void exchange_char() {
+
+  if (cursor == inputlength) {
+    leftcursor();
+  }
+  if (cursor > 0) {
+    char temp = inputbox[cursor];
+    inputbox[cursor] = inputbox[cursor - 1];
+    inputbox[cursor - 1] = temp;
+  }
+  rightcursor();
 }
 
 static inline void cmdletter(char c) {
@@ -298,15 +357,15 @@ static inline void cmdletter(char c) {
     //  case 'h':    help
   case 'k':    kill();          break;
   case 'm':    return_str();    break;
-    //  case 'n':    next_cmd
-    //  case 'p':    prev_cmd
+  case 'n':    next_cmd();      break;
+  case 'p':    prev_cmd();      break;
     //  case 'q':    quit_kbd
-    //  case 't':    exchange
+  case 't':    exchange_char();  break;
   case 'y':    yield();         break;
   default:     cursor_t = T;    break;
-    
   }
 }
+
 // End: Basic function
 
 
@@ -548,7 +607,7 @@ static void command_up(void) {
     if (framefocus) {
       upkey();
     } else {
-      // back to the prev command
+      prev_cmd();
     }
   }
 }
@@ -558,7 +617,7 @@ static void command_down(void) {
     if (framefocus) {
       downkey();
     } else {
-      // go to the next command 
+      next_cmd();
     }
   }
 }
