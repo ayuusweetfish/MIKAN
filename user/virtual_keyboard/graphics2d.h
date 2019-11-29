@@ -643,7 +643,7 @@ inline void transparent_copy(int16_t x_f, int16_t y_f, uint8_t buf_f[TEX_H][TEX_
     for (j = 0; j < height; j++) {
       if ((transparent_color->r != buf_f[y_f + j][x_f + i][2]) ||
 	  (transparent_color->g != buf_f[y_f + j][x_f + i][1]) ||
-	  (transparent_color->b != buf_f[y_f + j][x_f + i][2])) {
+	  (transparent_color->b != buf_f[y_f + j][x_f + i][0])) {
 	buf_t[y_t + j][x_t + i][2] = buf_f[y_f + j][x_f + i][2];
 	buf_t[y_t + j][x_t + i][1] = buf_f[y_f + j][x_f + i][1];
 	buf_t[y_t + j][x_t + i][0] = buf_f[y_f + j][x_f + i][0];

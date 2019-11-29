@@ -3,37 +3,19 @@
 #include <stdbool.h>
 
 // Start: Draw symbols
+// ffmpeg -f rawvideo -pix_fmt gray - -i symbols.png | hexdump -ve '1/1 "%.2x"' | fold -w266 | sed -e 's/00/0,/g' | sed -e 's/ff/1,/g'
 static uint8_t symbols[] = {
 #include "symbols.h"
 };
+
 static inline void text_symbol(int16_t x, int16_t y, uint8_t n) {
   uint16_t ptr = n * CHAR_W;
   for (uint8_t j = 0; j < CHAR_H; j++)
     for (uint8_t i = 0; i < CHAR_W; i++)
-      if (symbols[ptr + (j * CHAR_W * 16 + i)])
+      if (symbols[ptr + (j * CHAR_W * 19 + i)]) // 19 is the total number of symbols
 	pix(x + i, y + j);
 }
 // End: Draw symbols 
-
-// Start: Input box
-#define INPUTMAXLENGTH 32
-static char inputbox[INPUTMAXLENGTH + 1] = { 0 }; // last one is for \0 end signal;
-static uint8_t cursor = 0;
-static uint8_t inputlength = 0;
-static uint32_t cursor_t = 0;
-static inline void cursor_draw() {
-  int delta_t = T - cursor_t;
-  if (delta_t > 600 || delta_t % 60 < 30) rect(90 + cursor * CHAR_W, 30, CHAR_W, CHAR_H);
-
-}
-
-static inline void inputbox_draw() {
-  rectb(84, 24, 240, 25, 2);
-  text_str(90, 30, inputbox);
-  cursor_draw();
-}
-// End: Input box
-
 
 // Start: Basic structure of keyboard
 
@@ -67,14 +49,52 @@ static const char *keyboard_number[4] = { "()$~+123",
 					  "<>&#/0<|"};
 
 static uint8_t kbd_focus_position[2] = { 0, 0 };
-static bool framefocus = true;
+static bool framefocus = 1;
 static uint8_t toggle_key = 0;
 #define SHIFT          (1 << 0)
 #define CMD            (1 << 1)
 #define OPTION         (1 << 2)
 #define SWITCH         (1 << 3)
 // End: Basic structure of keyboard
+// Start: Input box
+#define INPUTMAXLENGTH 32
+static char inputbox[INPUTMAXLENGTH + 1] = { 0 }; // last one is for \0 end signal;
+static uint8_t cursor = 0;
+static uint8_t inputlength = 0;
+static uint32_t cursor_t = 0;
+static inline void cursor_draw() {
+  int delta_t = T - cursor_t;
+  if (delta_t > 600 || delta_t % 60 < 30) rect(90 + cursor * CHAR_W, 30, CHAR_W, CHAR_H);
 
+}
+
+static inline void inputbox_draw() {
+  alpha = 100;
+  if (!framefocus) {
+    rectb(85, 25, 240, 25, 2);
+    alpha = 150;
+  }
+  rectb(84, 24, 240, 25, 2);
+  text_str(90, 30, inputbox);
+  cursor_draw();
+  alpha = 255;
+}
+// End: Input box
+
+// Start: Output box
+static char outputbox[INPUTMAXLENGTH + 1] = { 0 };
+static inline void outputbox_draw() {
+  text_str(90, 60, outputbox);
+}
+
+// End: Output box
+
+// Start: Temp Proc Func
+static char procbuffer[INPUTMAXLENGTH + 1] = { 0 };
+static inline void proc_func() {
+  
+}
+// End: Temp Proc Func
 
 // Start: Key Hold
 #define HOLD_DURATION  12
@@ -109,6 +129,16 @@ static inline void key_position_fix() {
     remember_pre_space_position = kbd_focus_position[1];
     kbd_focus_position[1] = 3;
   }
+}
+
+static inline void headcursor() {
+  cursor = 0;
+  cursor_t = T;
+}
+
+static inline void tailcursor() {
+  cursor = inputlength;
+  cursor_t = T;
 }
 
 static inline void leftcursor() {
@@ -152,20 +182,27 @@ static inline void kill() {
   int i = 0;
   while((c = inputbox[cursor + i]) != 0) {
     killbuffer[i] = c;
+    inputbox[cursor + i] = 0;
     i++;
   }
   killlength = i;
-  while(i != INPUTMAXLENGTH + 1) killbuffer[i] = 0;
+  inputlength -= killlength;
+  while(i != INPUTMAXLENGTH + 1) {
+    killbuffer[i] = 0;
+    i ++;
+  }
+  
   cursor_t = T;
 }
 
 static inline void yield() {
-  if (inputlength + killlength < INPUTMAXLENGTH) {
+  if (inputlength + killlength <= INPUTMAXLENGTH) {
     strmove(killlength);
     for(int i = 0; i < killlength; i++) {
       inputbox[cursor + i] = killbuffer[i];
     }
-    cursor = cursor + killlength;
+    cursor += killlength;
+    inputlength += killlength;
   }
   cursor_t = T;
 }
@@ -189,10 +226,20 @@ static inline void backdelete() {
   cursor_t = T;
 }
 
+static inline void delete() {
+  if (cursor < inputlength) {
+    cursor++;
+    strmove(-1);
+    cursor--;
+    inputlength--;
+  }
+  cursor_t = T;
+}
+
 static inline void upkey() {
   if (kbd_focus_position[0] > 0) {
     kbd_focus_position[0] = kbd_focus_position[0] - 1;
-    if (kbd_focus_position[1] == 3) kbd_focus_position[1] = remember_pre_space_position;
+    if (kbd_focus_position[0] == 2 && kbd_focus_position[1] == 3) kbd_focus_position[1] = remember_pre_space_position;
   }
 }
 
@@ -222,7 +269,43 @@ static inline void rightkey() {
       }
     }
   }
-  
+}
+
+static inline void strcut(char *buf_f, char *buf_t) {
+  int i = 0;
+  for (i = 0; i < INPUTMAXLENGTH; i++) {
+    buf_t[i] = buf_f[i];
+    buf_f[i] = 0;
+  }
+  buf_f[i] = buf_t[i] = 0;
+}
+
+static inline void return_str() {
+  strcut(inputbox, procbuffer);
+  cursor = inputlength = 0;
+  cursor_t = T;
+  proc_func();
+  strcut(procbuffer, outputbox);
+}
+
+static inline void cmdletter(char c) {
+  switch (c) {
+  case 'a':    headcursor();    break;
+  case 'b':    leftcursor();    break;
+  case 'd':    delete();        break;
+  case 'e':    tailcursor();    break;
+  case 'f':    rightcursor();   break;
+    //  case 'h':    help
+  case 'k':    kill();          break;
+  case 'm':    return_str();    break;
+    //  case 'n':    next_cmd
+    //  case 'p':    prev_cmd
+    //  case 'q':    quit_kbd
+    //  case 't':    exchange
+  case 'y':    yield();         break;
+  default:     cursor_t = T;    break;
+    
+  }
 }
 // End: Basic function
 
@@ -231,8 +314,9 @@ static inline void rightkey() {
 static void letterkey_draw (struct KEYBOARD_ELEMENT *self) {
   alpha = 100;
   if (framefocus && (kbd_focus_position[0] == self->row) && (kbd_focus_position[1] == self->col)) {
-    transparent_copy(KEY_WIDTH, 0, graph, self->x, self->y, buffer, KEY_WIDTH, 30, bcolor);
     color = palette + 8;
+    rect(self->x - 2, self->y - 2, 33, 34);
+    transparent_copy(KEY_WIDTH, 0, graph, self->x, self->y, buffer, KEY_WIDTH, 30, bcolor);
     text_char(self->x + 12, self->y + 9, keyboard_alphabeta[toggle_key & SHIFT][self->row][self->col]);
     alpha = 150;
   } else {
@@ -411,7 +495,10 @@ static void right_draw (struct KEYBOARD_ELEMENT *self) {
 // Start: Key action
 
 static void letterkey_action() {
-  typeletter(keyboard_alphabeta[toggle_key & SHIFT][kbd_focus_position[0]][kbd_focus_position[1]]);
+  char c = keyboard_alphabeta[toggle_key & SHIFT][kbd_focus_position[0]][kbd_focus_position[1]];
+  if (toggle_key & CMD) cmdletter(c);
+  else typeletter(c);
+
 }
 
 static void backspace_action() {
@@ -419,7 +506,7 @@ static void backspace_action() {
 }
 
 static void space_action() {
-  typeletter(' ');
+  typeletter('_');
 }
 
 static void right_action() {
@@ -445,6 +532,12 @@ static void switch_action() {
 static void option_action() {
   toggle_key ^= OPTION;
 }
+
+static void return_action() {
+  return_str();
+
+}
+
 // End: Key action
 
 
@@ -475,7 +568,7 @@ static void command_left(void) {
     if (framefocus) {
       leftkey();
     } else {
-      // cursor left
+      leftcursor();
     }
   }
 }
@@ -485,29 +578,41 @@ static void command_right(void) {
     if (framefocus) {
       rightkey();
     } else {
-      // cursor right
+      rightcursor();
     }
   }
 }
 
 static void command_cro(void) {
   if (keyhold(4, HOLD_DURATION, HOLD_PERI)) {
-    backdelete();
+    if (framefocus)
+      backdelete();
+    else
+      delete();
   }
 }
 
 static void command_cir(void) {
   if (keyhold(5, HOLD_DURATION, HOLD_PERI)) {
-    keyboard_1[kbd_focus_position[0]][kbd_focus_position[1]].action();
+    if (framefocus) 
+      keyboard_1[kbd_focus_position[0]][kbd_focus_position[1]].action();
+    else
+      typeletter('_');
   }
 }
 
 static void command_sqr(void) {
-  // switch frame focus
+  if (keyhold(6, HOLD_DURATION, HOLD_PERI << 2)) {
+    framefocus ^= true;
+    cursor_t = T;
+  }
 }
 
 static void command_tri(void) {
-  // confirm
+  if (keyhold(7, HOLD_DURATION, HOLD_PERI << 2)) {
+    return_str();
+  }
+  // TODO: quit
 }
 
 static void (*command[8])(void) = { command_up, command_down, command_left, command_right,
@@ -587,6 +692,7 @@ static inline void keyboard_init() {
   keyboard_1[3][5].draw = space_draw;
   keyboard_1[3][6].draw = space_draw;
   keyboard_1[3][7].draw = return_draw;
+  keyboard_1[3][7].action = return_action;
   keyboard_1[3][8].draw = left_draw;
   keyboard_1[3][8].action = left_action;
   keyboard_1[3][9].draw = right_draw;
@@ -683,9 +789,12 @@ static inline void test() {
 void *draw() {
   cls();
   keyboard_draw();
+  text_char(30, 30, '0'+ inputlength / 10);
+  text_char(30 + CHAR_W, 30, '0'+ inputlength % 10);
+  text_char(50, 30, '0'+ killlength / 10);
+  text_char(50 + CHAR_W, 30, '0'+ killlength % 10);
   
-  text_char(30, 30, '0' + kbd_focus_position[0]);
-  text_char(60, 30, '0' + kbd_focus_position[1]);
   inputbox_draw();
+  outputbox_draw();
   return (void *)buffer;
 }
