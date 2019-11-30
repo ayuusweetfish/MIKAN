@@ -43,10 +43,10 @@ static const char *keyboard_alphabeta[2][4] = {{ "qwertyuiop",
 						 "CMN    |{}", }};
 // 4 * 8 number keyboard
 static KBD_ELE keyboard_2[4][8];
-static const char *keyboard_number[4] = { "()$~+123",
-					  "{}%!-456",
-					  "[]^@*789",
-					  "<>&#/0<|"};
+static const char *keyboard_number[4] = { "$~()+123",
+					  "%@{}-456",
+					  "^#[]*789",
+					  "N&<>/0<|"};
 
 static uint8_t kbd_focus_position[2] = { 0, 0 };
 static bool framefocus = 1;
@@ -239,33 +239,42 @@ static inline void delete() {
 static inline void upkey() {
   if (kbd_focus_position[0] > 0) {
     kbd_focus_position[0] = kbd_focus_position[0] - 1;
-    if (kbd_focus_position[0] == 2 && kbd_focus_position[1] == 3) kbd_focus_position[1] = remember_pre_space_position;
+    if (!(toggle_key & SWITCH))
+      if (kbd_focus_position[0] == 2 && kbd_focus_position[1] == 3)
+	kbd_focus_position[1] = remember_pre_space_position;
   }
 }
 
 static inline void downkey() {
   if (kbd_focus_position[0] < 3) {
     kbd_focus_position[0] = kbd_focus_position[0] + 1;
-    key_position_fix();
+    if (!(toggle_key & SWITCH))
+      key_position_fix();
   }
 }
 
 static inline void leftkey() {
   if (kbd_focus_position[1] > 0) {
     kbd_focus_position[1] = kbd_focus_position[1] - 1;
-    key_position_fix();
+    if (!(toggle_key & SWITCH))
+      key_position_fix();
   }
 }
 
 static inline void rightkey() {
-  if (kbd_focus_position[1] < 9) {
-    kbd_focus_position[1] = kbd_focus_position[1] + 1;
-    if (kbd_focus_position[0] == 3) {
-      if (kbd_focus_position[1] == 3) {
-	remember_pre_space_position = 3;
-      }
-      if (kbd_focus_position[1] == 4) {
-	kbd_focus_position[1] = 7;
+  if (toggle_key & SWITCH) {
+    if (kbd_focus_position[1] < 7) 
+      kbd_focus_position[1] = kbd_focus_position[1] + 1;
+  } else {
+    if (kbd_focus_position[1] < 9) {
+      kbd_focus_position[1] = kbd_focus_position[1] + 1;
+      if (kbd_focus_position[0] == 3) {
+	if (kbd_focus_position[1] == 3) {
+	  remember_pre_space_position = 3;
+	}
+	if (kbd_focus_position[1] == 4) {
+	  kbd_focus_position[1] = 7;
+	}  
       }
     }
   }
@@ -312,6 +321,7 @@ static inline void prev_cmd() {
   cmd_cursor = (cmd_cursor + 1) % CMD_BUFFER_DEPTH;
   strcp(cmd_buffer[cmd_cursor], inputbox);
   cursor = cmd_buf_length[cmd_cursor];
+  inputlength = cursor;
   cursor_t = T;
 }
 
@@ -320,6 +330,7 @@ static inline void next_cmd() {
     cmd_cursor = ((cmd_cursor == 0) ? (CMD_BUFFER_DEPTH - 1) : (cmd_cursor - 1));
     strcp(cmd_buffer[cmd_cursor], inputbox);
     cursor = cmd_buf_length[cmd_cursor];
+    inputlength = cursor;
   }
   cursor_t = T;
 }
@@ -383,6 +394,22 @@ static void letterkey_draw (struct KEYBOARD_ELEMENT *self) {
     color = palette + 7;
   }
   text_char(self->x + 11, self->y + 8, keyboard_alphabeta[toggle_key & SHIFT][self->row][self->col]);
+  alpha = 255;
+}
+
+static void numberkey_draw (struct KEYBOARD_ELEMENT *self) {
+  alpha = 100;
+  if (framefocus && (kbd_focus_position[0] == self->row) && (kbd_focus_position[1] == self->col)) {
+    color = palette + 8;
+    rect(self->x - 2, self->y - 2, 33, 34);
+    transparent_copy(KEY_WIDTH, 0, graph, self->x, self->y, buffer, KEY_WIDTH, 30, bcolor);
+    text_char(self->x + 12, self->y + 9, keyboard_number[self->row][self->col]);
+    alpha = 150;
+  } else {
+    transparent_copy(0, 0, graph, self->x, self->y, buffer, KEY_WIDTH, 30, bcolor);
+    color = palette + 7;
+  }
+  text_char(self->x + 11, self->y + 8, keyboard_number[self->row][self->col]);
   alpha = 255;
 }
 
@@ -557,7 +584,11 @@ static void letterkey_action() {
   char c = keyboard_alphabeta[toggle_key & SHIFT][kbd_focus_position[0]][kbd_focus_position[1]];
   if (toggle_key & CMD) cmdletter(c);
   else typeletter(c);
+}
 
+static void numberkey_action() {
+  char c = keyboard_number[kbd_focus_position[0]][kbd_focus_position[1]];
+  typeletter(c);
 }
 
 static void backspace_action() {
@@ -585,7 +616,9 @@ static void cmd_action() {
 }
 
 static void switch_action() {
+  toggle_key &= SWITCH;
   toggle_key ^= SWITCH;
+  kbd_focus_position[0] = 0; kbd_focus_position[1] = 0;
 }
 
 static void option_action() {
@@ -653,8 +686,13 @@ static void command_cro(void) {
 
 static void command_cir(void) {
   if (keyhold(5, HOLD_DURATION, HOLD_PERI)) {
-    if (framefocus) 
-      keyboard_1[kbd_focus_position[0]][kbd_focus_position[1]].action();
+    if (framefocus)
+      if (toggle_key & SWITCH) {
+	keyboard_2[kbd_focus_position[0]][kbd_focus_position[1]].action();
+      }
+      else {
+	keyboard_1[kbd_focus_position[0]][kbd_focus_position[1]].action();
+      }
     else
       typeletter('_');
   }
@@ -690,6 +728,7 @@ static inline void keyboard_init() {
   uint8_t i;
   int16_t xi, yi;
   int16_t x_i, y_i;
+  // keyboard_1 init
   xi = (TEX_W - (10 * (KEY_WIDTH + KEYBOARD_FRAME)) + KEYBOARD_FRAME) >> 1;
   x_i = xi;
   yi = 90;
@@ -756,6 +795,66 @@ static inline void keyboard_init() {
   keyboard_1[3][8].action = left_action;
   keyboard_1[3][9].draw = right_draw;
   keyboard_1[3][9].action = right_action;
+  // keyboard_1 init end
+  
+  // keyboard_2 init
+  xi = (TEX_W - (9 * (KEY_WIDTH + KEYBOARD_FRAME)) + KEYBOARD_FRAME) >> 1;
+  x_i = xi;
+  yi = 90;
+  for (i = 0; i < 8; i++) {
+    keyboard_2[0][i].x = xi;
+    keyboard_2[0][i].y = yi;
+    keyboard_2[0][i].row = 0;
+    keyboard_2[0][i].col = i;
+    keyboard_2[0][i].draw = numberkey_draw;
+    keyboard_2[0][i].action = numberkey_action;
+    xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+    if (i == 3) xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+  }
+  yi = 125;
+  xi = x_i;
+  for (i = 0; i < 8; i++) {
+    keyboard_2[1][i].x = xi;
+    keyboard_2[1][i].y = yi;
+    keyboard_2[1][i].row = 1;
+    keyboard_2[1][i].col = i;
+    keyboard_2[1][i].draw = numberkey_draw;
+    keyboard_2[1][i].action = numberkey_action;
+    xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+    if (i == 3) xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+  }
+  yi = 160;
+  xi = x_i;
+  for (i = 0; i < 8; i++) {
+    keyboard_2[2][i].x = xi;
+    keyboard_2[2][i].y = yi;
+    keyboard_2[2][i].row = 2;
+    keyboard_2[2][i].col = i;
+    keyboard_2[2][i].draw = numberkey_draw;
+    keyboard_2[2][i].action = numberkey_action;
+    xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+    if (i == 3) xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+  }
+  yi = 195;
+  xi = x_i;
+  for (i = 0; i < 8; i++) {
+    keyboard_2[3][i].x = xi;
+    keyboard_2[3][i].y = yi;
+    keyboard_2[3][i].row = 3;
+    keyboard_2[3][i].col = i;
+    keyboard_2[3][i].draw = numberkey_draw;
+    keyboard_2[3][i].action = numberkey_action;
+    xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+    if (i == 3) xi = xi + KEY_WIDTH + KEYBOARD_FRAME;
+  }
+  keyboard_2[3][0].draw = switch_draw;
+  keyboard_2[3][0].action = switch_action;
+  keyboard_2[3][6].draw = backspace_draw;
+  keyboard_2[3][6].action = backspace_action;
+  keyboard_2[3][7].draw = return_draw;
+  keyboard_2[3][7].action = return_action;
+  // keyboard_2 init end
+  
   // DRAW GRAPH
   uint8_t (*temp_buf)[TEX_W][3];
   temp_buf = buffer;
@@ -785,22 +884,16 @@ static inline void keyboard_update() {
 static inline void keyboard_draw() {
   RGB* color_store = color;
   uint8_t alpha_store = alpha;
-  uint8_t i;
+  uint8_t i, j;
 
   if (toggle_key & SWITCH) {
+    for (j = 0; j < 4; j++) 
+    for (i = 0; i < 8; i++) 
+      keyboard_2[j][i].draw(&keyboard_2[j][i]);
   } else {
-    for (i = 0; i < 10; i++) {
-      keyboard_1[0][i].draw(&keyboard_1[0][i]);
-    }
-    for (i = 0; i < 10; i++) {
-      keyboard_1[1][i].draw(&keyboard_1[1][i]);
-    }
-    for (i = 0; i < 10; i++) {
-      keyboard_1[2][i].draw(&keyboard_1[2][i]);
-    }
-    for (i = 0; i < 10; i++) {
-      keyboard_1[3][i].draw(&keyboard_1[3][i]);
-    }
+    for (j = 0; j < 4; j++) 
+    for (i = 0; i < 10; i++) 
+      keyboard_1[j][i].draw(&keyboard_1[j][i]);
   }
   alpha = alpha_store;
   color = color_store;
