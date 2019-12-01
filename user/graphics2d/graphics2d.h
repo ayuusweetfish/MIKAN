@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-
+#include <stdio.h>
 #ifndef TEX_W
 #define TEX_W 400
 #endif
@@ -101,7 +101,7 @@ inline bool is_color(int16_t x, int16_t y) {
   if (x >= 0 && x < TEX_W && y >= 0 && y < TEX_H)
     result = ((mask & WRITEMASK) ?
 	      (maskbuf[y][x] == alpha) :
-	      (buffer[y][x][2] == c->r && buffer[y][x][1] == c->g && buffer[y][x] == c->b));
+	      (buffer[y][x][2] == color->r && buffer[y][x][1] == color->g && buffer[y][x][0] == color->b));
   return result;
 }
 
@@ -176,23 +176,31 @@ inline void line(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
   int16_t rx1, ry1, rx2, ry2;
   int16_t dx = x2 - x1; int16_t dy = y2 - y1;
   float k, di;
-  int8_t flag;
-  if (dx < 0) {
+  int8_t flag, rev, last;
+  if (abs(dx) > abs(dy)) {
+      if (dx < 0) {
     rx1 = x2;    rx2 = x1;
     ry1 = y2;    ry2 = y1;
     dx = -dx;    dy = -dy;
+    last = rev = true;
   } else {
     rx1 = x1;    rx2 = x2;
     ry1 = y1;    ry2 = y2;
+    last = rev = false;
   }
-  if (abs(dx) > abs(dy)) {
+
+
     // x axis is the main direction
     k = ((float)dy) / ((float)dx);
     flag = sgn(k);
     k = abs(k);
     di = 0.5 - k;
     while (rx1 < rx2) {
-      pix(rx1, ry1);
+      if (rev) {
+	rev = false;
+      } else {
+	pix(rx1, ry1);
+      }
       rx1++;
       if (di > 0) {
 	di = di - k;
@@ -201,15 +209,31 @@ inline void line(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
 	ry1+=flag;
       }
     }
+    if (last) pix(rx1, ry1);
   } else {
+      if (dy < 0) {
+    rx1 = x2;    rx2 = x1;
+    ry1 = y2;    ry2 = y1;
+    dx = -dx;    dy = -dy;
+    last = rev = true;
+  } else {
+    rx1 = x1;    rx2 = x2;
+    ry1 = y1;    ry2 = y2;
+    last = rev = false;
+  }
+
+
     // y axis is the main direction
     k = ((float)dx) / ((float)dy);
     flag = sgn(k);
     k = abs(k);
-
     di = 0.5 - k;
     while (ry1 < ry2) {
-      pix(rx1, ry1);
+      if (rev) {
+	rev = false;
+      } else {
+	pix(rx1, ry1);
+      }
       ry1++;
       if (di > 0) {
 	di = di - k;
@@ -218,6 +242,7 @@ inline void line(int16_t x1, int16_t y1, int16_t x2, int16_t y2) {
 	rx1+=flag;
       }
     }
+    if (last) pix(rx1, ry1);
   }
 }
 
@@ -755,53 +780,10 @@ inline void polygon(int16_t* x, int16_t* y, uint8_t n){
 
 inline void polygonb(int16_t* x, int16_t* y, uint8_t n){
   if (n > MAX_POLYGON_EDGES || n < 3) return; // error
-  int i, j, i_next;
-  uint8_t drawflag;
-  ceat_node * temp;
-  ceat_node * temp2;
-  int16_t first_x = x[0];
-  int16_t first_y = y[0];
-  int16_t max_x = first_x;
-  int16_t max_y = first_y;
-  int16_t min_x = first_x;
-  int16_t min_y = first_y;
-  int16_t x_h, x_l, y_h, y_l;
-  for (i = 1; i < n; i ++) {
-    max_x = max(max_x, x[i]);
-    max_y = max(max_y, y[i]);
-    min_x = min(min_x, x[i]);
-    min_y = min(min_y, y[i]);
-  }
-  uint16_t x_d = max_x - min_x;
-  uint16_t y_d = max_y - min_y;
-  if (y_d > MAX_POLYGON_HEIGHT) return; // error
-  clear_the_bucket();
+  int i, i_next;
   for (i = 0; i < n; i++) {
     i_next = (i + 1) % n;
-    if (y[i] > y[i_next]) { x_h = x[i]; y_h = y[i]; x_l = x[i_next]; y_l = y[i_next]; }
-    else { x_h = x[i_next]; y_h = y[i_next]; x_l = x[i]; y_l = y[i]; }
-    edges[i].x = x_l - min_x;
-    edges[i].y_max = y_h - min_y;
-    if (y_h != y_l) {
-      edges[i].ik = ((float)(x_h - x_l)) / ((float)(y_h - y_l));
-      add_to_polygon_bucket(edges+i, scanbucket+y_l-min_y);
-    }
-  }
-  for (i = 0; i < y_d; i++) {
-    tidy_the_bucket(scanbucket+i, i);
-    temp = scanbucket+i;
-    if (temp->next != NULL) {
-      for (j = (int)(temp->next->x); j < x_d; j++) {
-	if (temp->next == NULL) break;
-	if (j + 1 > temp->next->x) {
-	   pix(j+min_x, i+min_y);
-	  temp->next->x += temp->next->ik;
-	  temp2 = temp->next;
-	  temp->next = temp->next->next;
-	  add_to_polygon_bucket(temp2, scanbucket+i+1);
-	}
-      }
-    }
+     line(x[i], y[i], x[i_next], y[i_next]);
   }
 }
 
@@ -821,29 +803,127 @@ inline void trib(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int
 #define FULLFILLSTACK_DEPTH   1024
 extern uint16_t fullfillstack_cursor;
 extern int16_t fullfillstack[FULLFILLSTACK_DEPTH << 1];
-
-inline void seedfullfill(int16_t x, int16_t y) {
+#define EIGHT_FILL 0
+#define FOUR_FILL 1
+inline void seedfullfill(int16_t x, int16_t y, uint8_t fill_type) {
   int row, col;
   int x_ptr;
   int mid, left, right;
+  bool last_is_color, this_is_color;
   fullfillstack_cursor = 0;
   if (x >=0 && x < TEX_W && y >= 0 && y < TEX_H) {
     fullfillstack[0] = x;
     fullfillstack[1] = y;
     fullfillstack_cursor++;
   }
-  while (fullfillstack_cursor > 0) {
-    col = fullfillstack[fullfillstack_cursor << 1]; 
-    row = fullfillstack[(fullfillstack_cursor << 1)+1];
-    fullfillstack--;
+
+  while (fullfillstack_cursor > 0 && fullfillstack_cursor <= FULLFILLSTACK_DEPTH) {
+
+    col = fullfillstack[(fullfillstack_cursor - 1) << 1]; 
+    row = fullfillstack[(fullfillstack_cursor << 1) - 1];
+
+    fullfillstack_cursor--;
     // find the left
     x_ptr = col;
-    while (is_color(x_ptr-1, row)) {
+    while (!is_color(x_ptr, row)) {
+      pix(x_ptr, row);
       x_ptr--;
     }
+    left = x_ptr + fill_type;
+
+
+    // find the right;
+    x_ptr = col + 1;
+    while (!is_color(x_ptr, row)){
+      pix(x_ptr, row);
+      x_ptr++;
+    }
+    right = x_ptr - fill_type;
+    row ++;
+    if (right >= TEX_W) right = TEX_W -1;
+    if (left < 0) left = 0;
+    if (row < TEX_H) {    
+      last_is_color = true;
+      for (x_ptr = left; x_ptr <= right; x_ptr++) {
+	this_is_color = is_color(x_ptr, row);
+	if ((!last_is_color) && this_is_color) {
+	  fullfillstack[fullfillstack_cursor << 1] = x_ptr - 1;
+	  fullfillstack[(fullfillstack_cursor << 1) + 1] = row;
+	  fullfillstack_cursor++;
+	}
+	last_is_color = this_is_color;
+      }
+      if (!is_color(x_ptr - 1, row)) {
+	fullfillstack[fullfillstack_cursor << 1] = x_ptr - 1;
+	fullfillstack[(fullfillstack_cursor << 1) + 1] = row;
+	fullfillstack_cursor++;
+      }
+    }
     
+    row -= 2;
+    if (row >= 0) {
+      last_is_color = true;
+      for (x_ptr = left; x_ptr <= right; x_ptr++) {
+	this_is_color = is_color(x_ptr, row);
+	if ((!last_is_color) && this_is_color) {
+	  fullfillstack[fullfillstack_cursor << 1] = x_ptr - 1;
+	  fullfillstack[(fullfillstack_cursor << 1) + 1] = row;
+	  fullfillstack_cursor++;
+	}
+	last_is_color = this_is_color;
+      }
+      if (!is_color(x_ptr-1, row)) {
+	fullfillstack[fullfillstack_cursor << 1] = x_ptr - 1;
+	fullfillstack[(fullfillstack_cursor << 1) + 1] = row;
+	fullfillstack_cursor++;
+      }
+    }
+  }
+}
+extern float transform_2d_matrix[3][3];
+extern float transform_3d_matrix[4][4];
+
+inline void transform_2d(float A[][3], float B[3][3], uint8_t n) {
+  float temp[3];
+  for (int i = 0; i < n; i++) {
+    temp[0] = A[i][0]; temp[1] = A[i][1]; temp[2] = A[i][2];
+    for (int j = 0; j < 3; j++) {
+      A[i][j] = temp[0] * B[0][j] + temp[1] * B[1][j] + temp[2] * B[2][j];
+    }
   }
 }
 
+inline void transform_3d(float A[][4], float B[4][4], uint8_t n) {
+  float temp[4];
+  for (int i = 0; i < n; i++) {
+    temp[0] = A[i][0]; temp[1] = A[i][1]; temp[2] = A[i][2]; temp[3] = A[i][3];
+    for (int j = 0; j < 4; j++) {
+      A[i][j] = temp[0] * B[0][j] + temp[1] * B[1][j] + temp[2] * B[2][j] + temp[3] * B[3][j];
+    }
+  }
+}
+
+inline void affine_transform_2d_init(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3,
+				     int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3) {
+  float denominator, dx1, dx2, dy1, dy2, du1, du2, dv1, dv2;
+  dx1 = x1 - x2;
+  dx2 = x1 - x3;
+  dy1 = y1 - y2;
+  dy2 = y1 - y3;
+  du1 = u1 - u2;
+  du2 = u1 - u3;
+  dv1 = v1 - v2;
+  dv2 = v1 - v3;
+  denominator = dx1 * dy2 - dx2 * dy1;
+  transform_2d_matrix[0][0] = (du1 * dy2 - du2 * dy1) / denominator;
+  transform_2d_matrix[0][1] = (dv1 * dy2 - dv2 * dy1) / denominator;
+  transform_2d_matrix[0][2] = 0;
+  transform_2d_matrix[1][0] = (du2 * dx1 - du1 * dx2) / denominator;
+  transform_2d_matrix[1][1] = (dv2 * dx1 - dv1 * dx2) / denominator;
+  transform_2d_matrix[1][2] = 0;
+  transform_2d_matrix[2][0] = u1 - x1 * transform_2d_matrix[0][0] - y1 * transform_2d_matrix[1][0];
+  transform_2d_matrix[2][1] = v1 - x1 * transform_2d_matrix[0][1] - y1 * transform_2d_matrix[1][1];
+  transform_2d_matrix[2][2] = 1;
+}
 
 #endif

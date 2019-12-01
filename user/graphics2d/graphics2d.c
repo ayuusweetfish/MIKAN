@@ -98,3 +98,13 @@ ceat_node scanbucket[MAX_POLYGON_HEIGHT];
 
 uint16_t fullfillstack_cursor = 0;
 int16_t fullfillstack[FULLFILLSTACK_DEPTH << 1];
+
+float transform_2d_matrix[3][3] = {{ 1, 0, 0 },
+				   { 0, 1, 0 },
+				   { 0, 0, 1 }};
+
+float transform_3d_matrix[4][4] = {{ 1, 0, 0, 0 },
+				   { 0, 1, 0, 0 },
+				   { 0, 0, 1, 0 },
+				   { 0, 0, 0, 1 }};
+

@@ -8,7 +8,7 @@ extern inline void usemask(bool b);
 
 extern inline void switch_color();
 extern inline void switch_alpha();
-extern inline bool is_color(int16_t x, int16_t y, RGB* c);
+extern inline bool is_color(int16_t x, int16_t y);
   
 extern inline void pix_rgba(int16_t x, int16_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 extern inline void pix_rgb(int16_t x, int16_t y, uint8_t r, uint8_t g, uint8_t b);
@@ -82,4 +82,13 @@ extern inline void add_to_polygon_bucket(ceat_node *node, ceat_node *head);
 extern inline void tidy_the_bucket(ceat_node *head, uint8_t y_iter);
 
 extern inline void clear_the_bucket();
+
+extern inline void seedfullfill(int16_t x, int16_t y, uint8_t fill_type);
+
+extern inline void transform_2d(float A[][3], float B[3][3], uint8_t n);
+
+extern inline void transform_3d(float A[][4], float B[4][4], uint8_t n);
+
+extern inline void affine_transform_2d_init(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3,
+					    int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3);
 #endif
