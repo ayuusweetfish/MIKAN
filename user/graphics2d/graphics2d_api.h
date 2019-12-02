@@ -90,5 +90,17 @@ extern inline void transform_2d(float A[][3], float B[3][3], uint8_t n);
 extern inline void transform_3d(float A[][4], float B[4][4], uint8_t n);
 
 extern inline void affine_transform_2d_init(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3,
-					    int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3);
+					    int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3, float matrix[3][3]);
+
+extern inline void translate_transform_2d_init(int16_t x, int16_t y, float matrix[3][3]);
+
+extern inline void scale_transform_2d_init(float s_x, float s_y, int16_t x, int16_t y, float matrix[3][3]);
+
+extern inline void rotate_transform_2d_init(float theta, int16_t x, int16_t y, float matrix[3][3]);
+
+extern inline void flip_transform_2d_init(float theta, int16_t x, int16_t y, float matrix[3][3]);
+
+extern inline void shear_transform_2d_init(float theta_x, float theta_y, int16_t x, int16_t y, float matrix[3][3]);
+
+
 #endif

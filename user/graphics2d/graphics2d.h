@@ -904,7 +904,7 @@ inline void transform_3d(float A[][4], float B[4][4], uint8_t n) {
 }
 
 inline void affine_transform_2d_init(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t x3, int16_t y3,
-				     int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3) {
+				     int16_t u1, int16_t v1, int16_t u2, int16_t v2, int16_t u3, int16_t v3, float matrix[3][3]) {
   float denominator, dx1, dx2, dy1, dy2, du1, du2, dv1, dv2;
   dx1 = x1 - x2;
   dx2 = x1 - x3;
@@ -915,15 +915,81 @@ inline void affine_transform_2d_init(int16_t x1, int16_t y1, int16_t x2, int16_t
   dv1 = v1 - v2;
   dv2 = v1 - v3;
   denominator = dx1 * dy2 - dx2 * dy1;
-  transform_2d_matrix[0][0] = (du1 * dy2 - du2 * dy1) / denominator;
-  transform_2d_matrix[0][1] = (dv1 * dy2 - dv2 * dy1) / denominator;
-  transform_2d_matrix[0][2] = 0;
-  transform_2d_matrix[1][0] = (du2 * dx1 - du1 * dx2) / denominator;
-  transform_2d_matrix[1][1] = (dv2 * dx1 - dv1 * dx2) / denominator;
-  transform_2d_matrix[1][2] = 0;
-  transform_2d_matrix[2][0] = u1 - x1 * transform_2d_matrix[0][0] - y1 * transform_2d_matrix[1][0];
-  transform_2d_matrix[2][1] = v1 - x1 * transform_2d_matrix[0][1] - y1 * transform_2d_matrix[1][1];
-  transform_2d_matrix[2][2] = 1;
+  matrix[0][0] = (du1 * dy2 - du2 * dy1) / denominator;
+  matrix[0][1] = (dv1 * dy2 - dv2 * dy1) / denominator;
+  matrix[0][2] = 0;
+  matrix[1][0] = (du2 * dx1 - du1 * dx2) / denominator;
+  matrix[1][1] = (dv2 * dx1 - dv1 * dx2) / denominator;
+  matrix[1][2] = 0;
+  matrix[2][0] = u1 - x1 * matrix[0][0] - y1 * matrix[1][0];
+  matrix[2][1] = v1 - x1 * matrix[0][1] - y1 * matrix[1][1];
+  matrix[2][2] = 1;
+}
+
+inline void translate_transform_2d_init(int16_t x, int16_t y, float matrix[3][3]) {
+  matrix[0][0] = 1;
+  matrix[0][1] = 0;
+  matrix[0][2] = 0;
+  matrix[1][0] = 0;
+  matrix[1][1] = 1;
+  matrix[1][2] = 0;
+  matrix[2][0] = x;
+  matrix[2][1] = y;
+  matrix[3][2] = 1;
+}
+
+inline void scale_transform_2d_init(float s_x, float s_y, int16_t x, int16_t y, float matrix[3][3]) {
+  matrix[0][0] = s_x;
+  matrix[0][1] = 0;
+  matrix[0][2] = 0;
+  matrix[1][0] = 0;
+  matrix[1][1] = s_y;
+  matrix[1][2] = 0;
+  matrix[2][0] = x - x * s_x;
+  matrix[2][1] = y - y * s_y;
+  matrix[3][2] = 1;  
+}
+
+inline void rotate_transform_2d_init(float theta, int16_t x, int16_t y, float matrix[3][3]) {
+  float sint = sinf(theta);
+  float cost = cosf(theta);
+  matrix[0][0] = cost;
+  matrix[0][1] = sint;
+  matrix[0][2] = 0;
+  matrix[1][0] = -sint;
+  matrix[1][1] = cost;
+  matrix[1][2] = 0;
+  matrix[2][0] = x + sint * y - cost * x;
+  matrix[2][1] = y - sint * x - cost * y;
+  matrix[3][2] = 1;
+}
+
+inline void flip_transform_2d_init(float theta, int16_t x, int16_t y, float matrix[3][3]) {
+  float sin2t = sinf(2 * theta);
+  float cos2t = cosf(2 * theta);
+  matrix[0][0] = cos2t;
+  matrix[0][1] = sin2t;
+  matrix[0][2] = 0;
+  matrix[1][0] = sin2t;
+  matrix[1][1] = -cos2t;
+  matrix[1][2] = 0;
+  matrix[2][0] = x - sin2t * y - cos2t * x;
+  matrix[2][1] = y - sin2t * x + cos2t * y;
+  matrix[3][2] = 1;
+}
+
+inline void shear_transform_2d_init(float theta_x, float theta_y, int16_t x, int16_t y, float matrix[3][3]) {
+  float b = tanf(theta_y);
+  float c = tanf(theta_x);
+  matrix[0][0] = 1;
+  matrix[0][1] = b;
+  matrix[0][2] = 0;
+  matrix[1][0] = c;
+  matrix[1][1] = 1;
+  matrix[1][2] = 0;
+  matrix[2][0] = - y * c;
+  matrix[2][1] = - x * b;
+  matrix[2][2] = 1;
 }
 
 #endif
