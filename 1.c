@@ -3,6 +3,8 @@
 
 extern unsigned char _bss_dmem_begin;
 extern unsigned char _bss_dmem_end;
+extern unsigned char _bss_normal_begin;
+extern unsigned char _bss_normal_end;
 
 uint32_t mm_sys[4096] __attribute__((aligned(1 << 14)));
 uint32_t mm_user[4096] __attribute__((aligned(1 << 14)));
@@ -58,9 +60,9 @@ void murmur(uint32_t num)
     DSB();
     for (uint32_t i = 0; i < num; i++) {
         *GPCLR1 = (1 << 15);
-        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        for (uint32_t i = 0; i < 100000000; i++) __asm__ __volatile__ ("");
         *GPSET1 = (1 << 15);
-        for (uint32_t i = 0; i < 10000000; i++) __asm__ __volatile__ ("");
+        for (uint32_t i = 0; i < 100000000; i++) __asm__ __volatile__ ("");
     }
     DMB();
 }
@@ -148,7 +150,7 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uinstr()
     print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
         f.pwidth, f.pheight, f.pitch);
     set_virtual_offs(0, bufid * f.pheight);
-    printf("Undefined Instruction %x\n", r14);
+    printf("Andefined Instruction %x\n", r14);
     DMB();
     while (1) { murmur(2); wait(1000000); }
 }
@@ -160,7 +162,7 @@ void __attribute__((interrupt("UNDEFINED"))) _int_uhandler()
     print_init((uint8_t *)(f.buf + f.pitch * f.pheight * bufid),
         f.pwidth, f.pheight, f.pitch);
     set_virtual_offs(0, bufid * f.pheight);
-    printf("Undefined Handler\n");
+    printf("Andefined Handler\n");
     DMB();
     while (1) { murmur(3); wait(1000000); }
 }
@@ -342,6 +344,25 @@ void timer3_handler(void *_unused)
     _set_domain_access((1 << 2) | 3);
 }
 
+#include <math.h>
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
+
+unsigned synth(int16_t *buf, unsigned chunk_size)
+{
+    static uint8_t phase = 0;
+    static uint32_t count = 0;
+    if (count >= 131072) { count = 0; printf("\nStopping!\n"); return 0; }
+    for (unsigned i = 0; i < chunk_size; i += 2) {
+        int16_t sample = (int16_t)(32767 * sin(phase / 255.0 * M_PI * 2));
+        buf[i] = buf[i + 1] = sample;
+        phase += 2; // Folds over to 0 ~ 255, generates 344.5 Hz (F4 - ~1/4 semitone)
+    }
+    count += (chunk_size >> 1);
+    return chunk_size;
+}
+
 void kernel_main()
 {
     DSB();
@@ -369,6 +390,12 @@ void kernel_main()
     uint32_t dmem_end = ((uint32_t)&_bss_dmem_end - 1) >> 20;
     for (uint32_t i = dmem_start; i < dmem_end; i++) {
         mmu_table_section(mm_sys, i << 20, i << 20, 0);
+    }
+    _enable_mmu((uint32_t)mm_sys);
+    uint32_t normal_start = ((uint32_t)&_bss_normal_begin) >> 20;
+    uint32_t normal_end = ((uint32_t)&_bss_normal_end - 1) >> 20;
+    for (uint32_t i = normal_start; i < normal_end; i++) {
+        mmu_table_section(mm_sys, i << 20, i << 20, 0x40e);
     }
     _enable_mmu((uint32_t)mm_sys);
 
@@ -476,6 +503,22 @@ void kernel_main()
     uint32_t count = USPiGamePadAvailable();
     if (count) USPiGamePadRegisterStatusHandler(status_handler);
 
+    AMPiInitialize(44100, 4000);
+    AMPiSetChunkCallback(synth);
+    printf("Starting playback\n");
+    printf(AMPiIsActive() ? "Active\n" : "Inactive\n");
+    bool b = AMPiStart();
+    printf(b ? "Yes\n" : "No\n");
+
+    while (1) {
+        printf(AMPiIsActive() ? "\rActive  " : "\rInactive");
+        if (!AMPiIsActive()) {
+            murmur(5);
+            AMPiStart();
+        }
+        AMPiPoke();
+    }
+
     // Stupid application selection interface
     bool selected;
     uint8_t selappidx = 0;
@@ -483,7 +526,7 @@ void kernel_main()
 reselect:
     selected = false;
     do {
-        printf("Doing stuff\n");
+        printf("Doing stuff?\n");
         // Update
         b1 = b0;
         b0 = _buttons;

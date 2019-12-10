@@ -27,6 +27,28 @@ void free (void *pBlock)
 {
 }
 
+static uint8_t heapn[1 << 19] __attribute__((section(".bss.normal")));
+static uint32_t ptrn = 0;
+
+void *ampi_malloc(unsigned nSize)
+{
+    uspi_EnterCritical();
+    void *ret = (void *)(heapn + ptrn);
+    nSize <<= 4;
+    ptrn += nSize;
+    uspi_LeaveCritical();
+    DMB(); DSB();
+    return ret;
+}
+void ampi_free(void *p) { }
+
+static uint8_t coh[512 * 1024] __attribute__((section(".bss.dmem"), aligned(4096)));
+
+void *GetCoherentRegion512K()
+{
+    return coh;
+}
+
 void MsDelay (unsigned nMilliSeconds)
 {
     usDelay(nMilliSeconds * 1000);
@@ -86,6 +108,8 @@ void CancelKernelTimer (unsigned hTimer)
     */
 }
 
+TPeriodicTimerHandler *periodic_handler = NULL;
+
 static void timer2_handler(void *_unused)
 {
     DMB(); DSB();
@@ -103,6 +127,15 @@ static void timer2_handler(void *_unused)
             LogWrite("timer", LOG_DEBUG, "Called %u", i + 1);
             h(i + 1, timers[i].arg1, timers[i].arg2);
         }
+
+    if (periodic_handler) periodic_handler();
+    AMPiPoke();
+}
+
+void RegisterPeriodicHandler (TPeriodicTimerHandler *pHandler)
+{
+    // XXX: Why it works without this!!
+    //periodic_handler = pHandler;
 }
 
 void uspios_init()
@@ -158,6 +191,17 @@ int GetMACAddress (unsigned char Buffer[6])
     return 1;
 }
 
+uint32_t EnableVCHIQ (uint32_t p)
+{
+    static mbox_buf(4) buf __attribute__((section(".bss.dmem"), aligned(16)));
+    mbox_init(buf);
+    buf.tag.id = 0x48010;   // Enable VCHIQ
+    buf.tag.u32[0] = p;
+    mbox_emit(buf);
+    printf("EnableVCHIQ returns %d\n", buf.tag.u32[0]);
+    return buf.tag.u32[0];
+}
+
 void LogWrite (const char *pSource,
                unsigned    Severity,
                const char *pMessage, ...)
@@ -179,6 +223,11 @@ void uspi_assertion_failed (const char *pExpr, const char *pFile, unsigned nLine
     LogWrite("assert", LOG_ERROR,
         "Assertion failed: %s (%s:%d)", pExpr, pFile, nLine);
     while (1) { }
+}
+
+void ampi_assertion_failed (const char *pExpr, const char *pFile, unsigned nLine)
+{
+    uspi_assertion_failed(pExpr, pFile, nLine);
 }
 
 void DebugHexdump (const void *pBuffer, unsigned nBufLen, const char *pSource)
