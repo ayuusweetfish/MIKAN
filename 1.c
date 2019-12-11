@@ -344,6 +344,21 @@ void timer3_handler(void *_unused)
     _set_domain_access((1 << 2) | 3);
 }
 
+void vsync_handler(void *_unused)
+{
+    *(volatile uint32_t *)0x20600000 = 0;
+    static uint32_t count = 0;
+    static uint32_t last_time = 0;
+    uint32_t t = *SYSTMR_CLO;
+    count++;
+    if (last_time == 0) last_time = t;
+    if (t - last_time >= 1000000) {
+        printf("%d\n", count);
+        count = 0;
+        last_time = t;
+    }
+}
+
 #include <math.h>
 #ifndef M_PI
 #define M_PI 3.1415926535897932384626433832795
@@ -502,6 +517,8 @@ void kernel_main()
     USPiInitialize();
     uint32_t count = USPiGamePadAvailable();
     if (count) USPiGamePadRegisterStatusHandler(status_handler);
+
+    set_irq_handler(48, vsync_handler, NULL);
 
     AMPiInitialize(44100, 4000);
     AMPiSetChunkCallback(synth);
